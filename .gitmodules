@@ -1,0 +1,5 @@
+[submodule "modules/core-hx"]
+	path = modules/core-hx
+	url = git@bitbucket.org:imagination/9084-app-core-hx.git
+	branch = community/HAAR
+	internal = true

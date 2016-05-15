@@ -1,0 +1,516 @@
+{
+	"$host":"https:\/\/api.parse.com",
+	"$apiVersion":"1",
+	"$appId":"AAK1udIBuvyUXVVryw0F1ZRJqltS3m3GaaQmxIfj",
+	"$restKey":"oEOKnhqSHKS0y70PafJyBwrq9ZzyUHxZqd9niyaX",
+	"$baseUrl":"${host}\/${apiVersion}",
+	"$classUrl":"${baseUrl}\/classes",
+	"$type":"https",
+	"$idField":"objectId",
+
+	"$staticUrl":"${classUrl}\/@{className}",
+	"$objectUrl":"${classUrl}\/@{className}\/@{object.id}",
+
+	"$httpGetArgs":"@{args}.queryString",
+
+	"batchMethod":"parse.Parse.batch",
+
+
+    "$arrayOps":{
+		"add":{
+			"method":"PUT",
+			"post":"{\"@{field.name}\":{\"__op\":\"AddRelation\",\"objects\":[{\"__type\":\"Pointer\",\"className\":\"@{field.arrayType}\",\"objectId\":\"@{field.value.Id}\"}]}}"
+		},
+		"remove":{
+			"method":"PUT",
+			"post":"{\"@{field.name}\":{\"__op\":\"RemoveRelation\",\"objects\":[{\"__type\":\"Pointer\",\"className\":\"@{field.arrayType}\",\"objectId\":\"@{field.value.Id}\"}]}}"
+		}
+    },
+    "$objectStaticOps":{
+		"new":{
+			"method":"GET"
+		},
+		"query":{
+			"method":"GET",
+			"args":[
+				{
+					"name":"where",
+					"type":"parse.ParseQuery"
+				}
+			]
+		}
+    },
+    "$objectOps":{
+		"update":{
+			"method":"GET"
+		},
+		"save":{
+			"method":"PUT",
+			"post":"@{object.changedProps.json}"
+		},
+		"remove":{
+			"method":"DELETE",
+			"post":"@{object.changedProps.json}"
+		},
+		"deleteField":{
+			"method":"DELETE",
+			"args":[
+				{
+					"name":"field",
+					"type":"String"
+				}
+			],
+			"post":"{\"@{args[0]}\":{\"__op\":\"Delete\"}}"
+		}
+    },
+
+	"types":[
+        {
+            "package": "parse",
+            "className": "Parse",
+            "objectOps":null,
+            "objectStaticOps":{
+				"batch":{
+					"method":"GET",
+					"args":[
+						{
+							"name":"requests",
+							"type":"Array<http.HttpRequest>"
+						}
+					],
+					"url":"${baseUrl}/batch",
+					"data":"{\"requests\":@{args[0]}.json}"
+				}
+		    }
+        },
+        {
+            "package": "parse",
+            "className": "ParseQuery",
+            "extends": "haar.base.Query",
+            "objectOps":null,
+            "objectStaticOps":null,
+
+            "init":{
+            	"where":"where",
+            	"order":"order",
+            	"limit":"limit",
+            	"offset":"skip",
+            	"fields":"keys",
+            	"include":"include",
+
+            	"gte":"$gte",
+            	"gt":"$gt",
+            	"lte":"$lte",
+            	"eqAny":"$in",
+            	"eqNone":"$nin",
+            	"hasAll":"$all",
+            	"regex":"$regex",
+            	"fieldSet":"$exists",
+            	"joinQuery":"$select"
+            }
+        },
+        {
+            "package": "parse",
+            "className": "_User",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "authData": {
+                    "type": "Object"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "email": {
+                    "type": "String"
+                },
+                "emailVerified": {
+                    "type": "Bool"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "password": {
+                    "type": "String"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                },
+                "username": {
+                    "type": "String"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "_Role",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "name": {
+                    "type": "String"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "roles": {
+                    "type": "Array<parse._Role>"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                },
+                "users": {
+                    "type": "Array<parse._User>"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "App",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "alphaRelease": {
+                    "targetClass": "parse.AppVersion",
+                    "type": "Pointer"
+                },
+                "appId": {
+                    "type": "String"
+                },
+                "appName": {
+                    "type": "String"
+                },
+                "appType": {
+                    "targetClass": "parse.AppTypes",
+                    "type": "Pointer"
+                },
+                "betaRelease": {
+                    "targetClass": "parse.AppVersion",
+                    "type": "Pointer"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "currentRelease": {
+                    "targetClass": "parse.AppVersion",
+                    "type": "Pointer"
+                },
+                "displayName": {
+                    "type": "String"
+                },
+                "icon": {
+                    "type": "File"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "programFile": {
+                    "type": "String"
+                },
+                "programFolder": {
+                    "type": "String"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "AppVersion",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "app": {
+                    "targetClass": "parse.App",
+                    "type": "Pointer"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "installFile": {
+                    "type": "File"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "programFile": {
+                    "type": "String"
+                },
+                "programFolder": {
+                    "type": "String"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                },
+                "uploadedBy": {
+                    "targetClass": "parse._User",
+                    "type": "Pointer"
+                },
+                "versionMajor": {
+                    "type": "Float"
+                },
+                "versionMinor": {
+                    "type": "Float"
+                },
+                "versionRelease": {
+                    "type": "Float"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "_Session",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "createdWith": {
+                    "type": "Object"
+                },
+                "expiresAt": {
+                    "type": "parse.Date"
+                },
+                "installationId": {
+                    "type": "String"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "restricted": {
+                    "type": "Bool"
+                },
+                "sessionToken": {
+                    "type": "String"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                },
+                "user": {
+                    "targetClass": "parse._User",
+                    "type": "Pointer"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "Platform",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "Name": {
+                    "type": "String"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "AppType",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "type": {
+                    "type": "String"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "Terminal",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "accessToken": {
+                    "type": "String"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "idmVersion": {
+                    "type": "String"
+                },
+                "lastBroadcastIP": {
+                    "type": "String"
+                },
+                "lastExternalIP": {
+                    "type": "String"
+                },
+                "lastMAC": {
+                    "type": "String"
+                },
+                "name": {
+                    "type": "String"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "org": {
+                    "targetClass": "parse.Tag",
+                    "type": "Pointer"
+                },
+                "orgOrder": {
+                    "type": "Float"
+                },
+                "terminalUser": {
+                    "targetClass": "parse._User",
+                    "type": "Pointer"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "Tag",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "displayName": {
+                    "type": "String"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "order": {
+                    "type": "Float"
+                },
+                "parent": {
+                    "targetClass": "parse.Tag",
+                    "type": "Pointer"
+                },
+                "tagType": {
+                    "type": "String"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "_Installation",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "GCMSenderId": {
+                    "type": "String"
+                },
+                "badge": {
+                    "type": "Float"
+                },
+                "channels": {
+                    "type": "Array"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "deviceToken": {
+                    "type": "String"
+                },
+                "deviceType": {
+                    "type": "String"
+                },
+                "installationId": {
+                    "type": "String"
+                },
+                "localeIdentifier": {
+                    "type": "String"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "pushType": {
+                    "type": "String"
+                },
+                "timeZone": {
+                    "type": "String"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "Role",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                },
+                "users": {
+                    "type": "Array<parse._User>"
+                }
+            }
+        },
+        {
+            "package": "parse",
+            "className": "TerminalComms",
+            "fields": {
+                "ACL": {
+                    "type": "parse.ACL"
+                },
+                "createdAt": {
+                    "type": "parse.Date"
+                },
+                "objectId": {
+                    "type": "String"
+                },
+                "packet": {
+                    "type": "String"
+                },
+                "target": {
+                    "type": "String"
+                },
+                "updatedAt": {
+                    "type": "parse.Date"
+                }
+            }
+        }
+    ]
+}
