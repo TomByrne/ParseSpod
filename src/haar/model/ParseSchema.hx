@@ -20,10 +20,6 @@ typedef ParseTypeSchema =
 }
 typedef ParseFieldSchema =
 {
-	?i:Int,
-	?first:Bool,
-	?last:Bool,
-	?name:String,
 	type:String,
 	?targetClass:String
 }

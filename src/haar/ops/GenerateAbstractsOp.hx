@@ -24,6 +24,7 @@ class GenerateAbstractsOp implements IOp
 	private static var ARG_SCHEMA_FILES:String = "files";
 	private static var ARG_DEST:String = "dest";
 	private static var ARG_VERBOSE:String = "verbose";
+	private static var ARG_PACKAGE:String = "package";
 	
 	var template:Template;
 
@@ -44,7 +45,8 @@ class GenerateAbstractsOp implements IOp
 		return [
 			{ name:ARG_SCHEMA_FILES, desc:"Comma separated paths to schema files.", assumed:true, def:"" },
 			{ name:ARG_DEST, desc:"Destination path for generated classes.", assumed:true, def:"" },
-			{ name:ARG_VERBOSE, desc:"Whether to print out information on all classes generated.", assumed:false, def:"" }
+			{ name:ARG_VERBOSE, desc:"Whether to print out information on all classes generated.", assumed:false, def:"" },
+			{ name:ARG_PACKAGE, desc:"Which package to put the generated classes in.", assumed:false, def:"" }
 		];
 	}
 	
@@ -56,6 +58,7 @@ class GenerateAbstractsOp implements IOp
 		var files = args.get(ARG_SCHEMA_FILES);
 		var dest = args.get(ARG_DEST);
 		var verbose:Bool = args.get(ARG_VERBOSE)=="true";
+		var pack = args.get(ARG_PACKAGE);
 		
 		if (dest == ""){
 			dest = Sys.getCwd();
@@ -81,11 +84,11 @@ class GenerateAbstractsOp implements IOp
 		}
 		
 		for (file in filesArr){
-			readSchema(file, dest, verbose);
+			readSchema(file, dest, verbose, pack, filesArr.length);
 		}
 	}
 	
-	private function readSchema(schemaFile:String, dest:String, verbose:Bool) 
+	private function readSchema(schemaFile:String, dest:String, verbose:Bool, classPack:String, totalCount:Int) 
 	{
 		if (!FileSystem.exists(schemaFile)){
 			PrintTools.error("Schema file doesn't exist: " + schemaFile);
@@ -97,10 +100,15 @@ class GenerateAbstractsOp implements IOp
 		var schemaStr = File.getContent(schemaFile);
 		var schema:ParseSchema = Json.parse(schemaStr);
 		
-		var serverId:String = schema.serverId;
-		var classPack:String = "parse." + schema.serverId;
-		var dir:String = "/parse/" + schema.serverId + "/";
+		var serverId:String = schema.serverId.toLowerCase().split(" ").join("_");
 		
+		if (classPack == ""){
+			classPack = "parse." + serverId;
+		}else if(totalCount > 1){
+			classPack += "." + serverId;
+		}
+		
+		var dir:String = "/" + classPack.split(".").join("/") + "/";
 		var destDir = dest + dir;
 		
 		if (FileSystem.exists(destDir)){
@@ -125,21 +133,57 @@ class GenerateAbstractsOp implements IOp
 		}
 		
 		for (typeSchema in schema.types){
-			var fieldsArr:Array<ParseFieldSchema> = [];
+			var fieldsArr:Array<ParseFieldInfo> = [];
 			
-			if (typeSchema.className.charAt(0) == "_"){
-				typeSchema.className = typeSchema.className.substr(1) + "_";
-			}
+			typeSchema.className = cleanupClassName(typeSchema.className);
+			
 			
 			var fields = Reflect.fields(typeSchema.fields);
 			for (i in 0 ... fields.length){
 				var field = fields[i];
 				var fieldSchema = Reflect.field(typeSchema.fields, field);
-				fieldSchema.i = i;
-				fieldSchema.first = (i==0);
-				fieldSchema.last = (i==fields.length-1);
-				fieldSchema.name = field;
-				fieldsArr.push(fieldSchema);
+				var type:String;
+				var descType:String = "EntityDescFieldType.NORMAL";
+				switch(fieldSchema.type){
+					case "String":
+						type = "String";
+						
+					case "Boolean":
+						type = "Bool";
+						
+					case "Number":
+						type = "Float";
+						
+					case "Object":
+						type = "Dynamic";
+						
+					case "Array":
+						type = "Array<Dynamic>";
+						
+					case "Date":
+						type = "ParseDate";
+						
+					case "File":
+						descType = "EntityDescFieldType.FILE";
+						type = "ParseFile";
+						
+					case "ACL":
+						type = "ParseACL";
+						
+					case "Pointer":
+						descType = "EntityDescFieldType.POINTER";
+						type = cleanupClassName(fieldSchema.targetClass);
+						
+					case "Relation":
+						descType = "EntityDescFieldType.RELATION";
+						type = "ParseRelation<" + cleanupClassName(fieldSchema.targetClass) +">";
+						
+					default:
+						type = fieldSchema.type;
+						PrintTools.warn("Unknown type: " + fieldSchema.type);
+				}
+				var remoteType = (fieldSchema.targetClass==null ? "null" : '"' + fieldSchema.targetClass + '"');
+				fieldsArr.push({i:i, first:(i==0), last:(i==fields.length-1), name:field, type:type, descType:descType, remoteType:remoteType});
 			}
 			
 			var classStr = template.execute({className:typeSchema.className, fields:fieldsArr, haarVersion:"0.1beta", serverId:serverId, classPack:classPack});
@@ -155,4 +199,23 @@ class GenerateAbstractsOp implements IOp
 		}
 	}
 	
+	inline function cleanupClassName(className:String) 
+	{
+		
+		if (className.charAt(0) == "_"){
+			className = className.substr(1) + "_";
+		}
+		return className;
+	}
+	
+}
+typedef ParseFieldInfo =
+{
+	i:Int,
+	first:Bool,
+	last:Bool,
+	name:String,
+	type:String,
+	descType:String,
+	remoteType:String
 }

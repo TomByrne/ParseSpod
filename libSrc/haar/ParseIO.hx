@@ -1,10 +1,9 @@
 package haar;
-import com.imagination.worker.WorkerResponse.ResponseType;
+import com.imagination.util.time.Timer;
 import haar.ParseIO.ParseRequest;
 import haar.http.Http;
 import haar.http.Http.HttpMethod;
 import haxe.Json;
-import haxe.Timer;
 import promhx.Deferred;
 import promhx.Promise;
 
@@ -66,15 +65,14 @@ class ParseIO
 	private function startBatchTimer() 
 	{
 		if (batchTimer == null){
-			batchTimer = new Timer(Std.int(batchDelay * 1000));
-			batchTimer.run = sendBatch;
+			batchTimer = new Timer(sendBatch, Std.int(batchDelay * 1000));
 		}
+		batchTimer.go();
 	}
 	
 	private function sendBatch() 
 	{
 		batchTimer.stop();
-		batchTimer = null;
 		
 		var batchQue = this.batchQue;
 		this.batchQue = [];
