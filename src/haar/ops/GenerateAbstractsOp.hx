@@ -25,8 +25,10 @@ class GenerateAbstractsOp implements IOp
 	private static var ARG_DEST:String = "dest";
 	private static var ARG_VERBOSE:String = "verbose";
 	private static var ARG_PACKAGE:String = "package";
+	private static var ARG_TEMPLATES:String = "templates";
 	
-	var template:Template;
+	var entityTemplate:Template;
+	var systemTemplate:Template;
 
 	public function new() 
 	{
@@ -46,14 +48,38 @@ class GenerateAbstractsOp implements IOp
 			{ name:ARG_SCHEMA_FILES, desc:"Comma separated paths to schema files.", assumed:true, def:"" },
 			{ name:ARG_DEST, desc:"Destination path for generated classes.", assumed:true, def:"" },
 			{ name:ARG_VERBOSE, desc:"Whether to print out information on all classes generated.", assumed:false, def:"" },
-			{ name:ARG_PACKAGE, desc:"Which package to put the generated classes in.", assumed:false, def:"" }
+			{ name:ARG_PACKAGE, desc:"Which package to put the generated classes in.", assumed:false, def:"" },
+			{ name:ARG_TEMPLATES, desc:"Directory to search for templates (built-in = 'abstract').", assumed:false, def:"abstract" }
 		];
 	}
 	
 	public function doOp(args:Map<String, String>):Void 
 	{
-		var templateStr = Resource.getString("AbstractTemplate");
-		template = new Template(templateStr);
+		var templateDir = args.get(ARG_TEMPLATES);
+		var entityTemplatePath = templateDir + "/EntityTemplate";
+		var systemTemplatePath = templateDir + "/SystemTemplate";
+		
+		
+		var entityTemplateStr = Resource.getString(entityTemplatePath);
+		if (entityTemplateStr == null){
+			entityTemplateStr = File.getContent(entityTemplatePath+".hx");
+		}
+		if(entityTemplateStr != null){
+			entityTemplate = new Template(entityTemplateStr);
+		}
+		
+		var systemTemplateStr = Resource.getString(systemTemplatePath);
+		if (systemTemplateStr == null){
+			systemTemplateStr = File.getContent(systemTemplatePath+".hx");
+		}
+		if(systemTemplateStr != null){
+			systemTemplate = new Template(systemTemplateStr);
+		}
+		
+		if (entityTemplate == null && systemTemplate == null){
+			PrintTools.error("Couldn't find any templates in folder: " + templateDir);
+			return;
+		}
 		
 		var files = args.get(ARG_SCHEMA_FILES);
 		var dest = args.get(ARG_DEST);
@@ -132,69 +158,99 @@ class GenerateAbstractsOp implements IOp
 			FileSystem.createDirectory(destDir);
 		}
 		
-		for (typeSchema in schema.types){
-			var fieldsArr:Array<ParseFieldInfo> = [];
+		var haarVersion = "0.1beta";
+		
+		if (systemTemplate != null){
+				
+			var systemInfo:ParseSystemInfo = {className:"Server", haarVersion:haarVersion, serverId:serverId, classPack:classPack};
+			var systemStr = systemTemplate.execute(systemInfo);
 			
-			typeSchema.className = cleanupClassName(typeSchema.className);
-			
-			
-			var fields = Reflect.fields(typeSchema.fields);
-			for (i in 0 ... fields.length){
-				var field = fields[i];
-				var fieldSchema = Reflect.field(typeSchema.fields, field);
-				var type:String;
-				var descType:String = "EntityDescFieldType.NORMAL";
-				switch(fieldSchema.type){
-					case "String":
-						type = "String";
-						
-					case "Boolean":
-						type = "Bool";
-						
-					case "Number":
-						type = "Float";
-						
-					case "Object":
-						type = "Dynamic";
-						
-					case "Array":
-						type = "Array<Dynamic>";
-						
-					case "Date":
-						type = "ParseDate";
-						
-					case "File":
-						descType = "EntityDescFieldType.FILE";
-						type = "ParseFile";
-						
-					case "ACL":
-						type = "ParseACL";
-						
-					case "Pointer":
-						descType = "EntityDescFieldType.POINTER";
-						type = cleanupClassName(fieldSchema.targetClass);
-						
-					case "Relation":
-						descType = "EntityDescFieldType.RELATION";
-						type = "ParseRelation<" + cleanupClassName(fieldSchema.targetClass) +">";
-						
-					default:
-						type = fieldSchema.type;
-						PrintTools.warn("Unknown type: " + fieldSchema.type);
-				}
-				var remoteType = (fieldSchema.targetClass==null ? "null" : '"' + fieldSchema.targetClass + '"');
-				fieldsArr.push({i:i, first:(i==0), last:(i==fields.length-1), name:field, type:type, descType:descType, remoteType:remoteType});
-			}
-			
-			var classStr = template.execute({className:typeSchema.className, fields:fieldsArr, haarVersion:"0.1beta", serverId:serverId, classPack:classPack});
-			
-			var path = dir + typeSchema.className + ".hx";
+			var path = dir + systemInfo.className + ".hx";
 			var outputStream:FileOutput = File.write(dest + path);
-			outputStream.writeString(classStr);
+			outputStream.writeString(systemStr);
 			outputStream.close();
 			
 			if (verbose){
-				PrintTools.progressInfo("Successfully generated class " + path);
+				PrintTools.progressInfo("Successfully generated system class " + path);
+			}
+		}
+		
+		if(entityTemplate != null){
+			
+			for (typeSchema in schema.types){
+				var fieldsArr:Array<ParseFieldInfo> = [];
+				var relationsArr:Array<ParseFieldInfo> = [];
+				
+				
+				var fields = Reflect.fields(typeSchema.fields);
+				for (i in 0 ... fields.length){
+					var field = fields[i];
+					if (field == "objectId") continue;
+					
+					var fieldSchema = Reflect.field(typeSchema.fields, field);
+					var type:String;
+					var descType:String = "EntityDescFieldType.NORMAL";
+					var isRelation = false;
+					switch(fieldSchema.type){
+						case "String":
+							type = "String";
+							
+						case "Boolean":
+							type = "Bool";
+							
+						case "Number":
+							type = "Float";
+							
+						case "Object":
+							type = "Dynamic";
+							
+						case "Array":
+							type = "Array<Dynamic>";
+							
+						case "Date":
+							type = "ParseDate";
+							
+						case "File":
+							descType = "EntityDescFieldType.FILE";
+							type = "ParseFile";
+							
+						case "ACL":
+							type = "ParseACL";
+							
+						case "Pointer":
+							descType = "EntityDescFieldType.POINTER";
+							type = cleanupClassName(fieldSchema.targetClass);
+							
+						case "Relation":
+							descType = "EntityDescFieldType.RELATION";
+							type = cleanupClassName(fieldSchema.targetClass);
+							isRelation = true;
+							
+						default:
+							type = fieldSchema.type;
+							PrintTools.warn("Unknown type: " + fieldSchema.type);
+					}
+					var remoteType = (fieldSchema.targetClass==null ? "null" : '"' + fieldSchema.targetClass + '"');
+					var fieldInfo = {i:i, first:(i == 0), last:(i == fields.length - 1), name:field, type:type, descType:descType, remoteType:remoteType};
+					if (isRelation){
+						relationsArr.push(fieldInfo);
+					}else{
+						fieldsArr.push(fieldInfo);
+					}
+				}
+				
+				var classInfo:ParseClassInfo = {className:cleanupClassName(typeSchema.className), remoteClassName:typeSchema.className, fields:fieldsArr, relations:relationsArr, haarVersion:haarVersion, serverId:serverId, classPack:classPack};
+				
+				var classStr = entityTemplate.execute(classInfo);
+				
+				var path = dir + classInfo.className + ".hx";
+				var outputStream:FileOutput = File.write(dest + path);
+				outputStream.writeString(classStr);
+				outputStream.close();
+				
+				if (verbose){
+					PrintTools.progressInfo("Successfully generated class " + path);
+				}
 			}
 		}
 	}
@@ -208,6 +264,23 @@ class GenerateAbstractsOp implements IOp
 		return className;
 	}
 	
+}
+typedef ParseSystemInfo =
+{
+	serverId:String,
+	haarVersion:String,
+	className:String,
+	classPack:String,
+}
+typedef ParseClassInfo =
+{
+	serverId:String,
+	haarVersion:String,
+	className:String,
+	classPack:String,
+	remoteClassName:String,
+	fields:Array<ParseFieldInfo>,
+	relations:Array<ParseFieldInfo>,
 }
 typedef ParseFieldInfo =
 {

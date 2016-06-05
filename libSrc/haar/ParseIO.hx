@@ -16,6 +16,7 @@ class ParseIO
 	static var instances:Map<String, ParseIO> = new Map();
 	
 	var server:String;
+	var token:String;
 	var batchDelay:Float;
 	var batchQue:Array<ParseRequest> = [];
 	var batchTimer:Timer;
@@ -36,6 +37,12 @@ class ParseIO
 		return instances.get(server);
 	}
 	
+	static public function setToken(server:String, token:String) 
+	{
+		var parseIO = instances.get(server);
+		parseIO.token = token;
+	}
+	
 	function new(server:String, batchDelay:Float = 1, httpAttempts:Int = 2) 
 	{
 		this.server = server;
@@ -43,23 +50,123 @@ class ParseIO
 		this.httpAttempts = httpAttempts;
 	}
 	
-	public function add<T>(method:HttpMethod, url:String, ?data:Dynamic) : Promise<T>
+	public function add<T>(method:HttpMethod, url:String, ?data:Dynamic, ?queryOpts:ParseQueryOptions, ?queryVars:Map<String, String>, ?options:RequestOptions) : Promise<T>
 	{
-		if (batchDelay <= 0 || !canBatch(method, url, data)){
-			return sendSingleRequest(method, url, data);
+		if (queryOpts != null){
+			if (queryVars == null) queryVars = new Map();
+			addQueryOpts(queryVars, queryOpts);
+		}
+		if (queryVars != null){
+			url += encodeQueryVars(queryVars);
+		}
+		
+		if (batchDelay <= 0 || !canBatch(method, url, data, options)){
+			return sendSingleRequest(method, url, data, options);
 		}else{
 			var deferred:Deferred<T> = new Deferred();
 			var reqPack:ParseRequestPackage = {method:method, url:url};
 			if (data != null) reqPack.data = data;
-			batchQue.push({ pack:reqPack, deferred:deferred });
+			batchQue.push({ pack:reqPack, deferred:deferred, options:options });
 			startBatchTimer();
 			return new Promise(deferred);
 		}
 	}
 	
-	function canBatch(method:HttpMethod, url:String, ?data:Dynamic) : Bool
+	function addQueryOpts(query:Map<String, String>, queryOpts:ParseQueryOptions) 
 	{
-		return (method == HttpMethod.PUT || method == HttpMethod.POST || method == HttpMethod.DELETE);
+		if (queryOpts.skip != null){
+			query.set("skip", Std.string(queryOpts.skip));
+		}
+		if (queryOpts.limit != null){
+			query.set("limit", Std.string(queryOpts.limit));
+		}
+		if (queryOpts.order != null){
+			query.set("order", queryOpts.order);
+		}
+		if (queryOpts.include != null){
+			query.set("include", queryOpts.include.join(","));
+		}
+		if (queryOpts.keys != null){
+			query.set("keys", queryOpts.keys.join(","));
+		}
+		if (queryOpts.where != null){
+			query.set("where", Json.stringify(encodeQuery(queryOpts.where)));
+		}
+	}
+	
+	function encodeQueryVars(query:Map<String, String>) 
+	{
+		var ret = "";
+		for (key in query.keys()){
+			if (ret.length > 0) ret += "&";
+			ret += key + "=" + query.get(key);
+		}
+		return (ret.length > 0 ? "?" + ret : "");
+	}
+	
+	function encodeQuery(where:Map<String, ParseQueryOps>) : Dynamic
+	{
+		var obj = {};
+		var relatedUsed = false;
+		for(prop in where.keys()){
+			switch(where.get(prop)){
+				case Eq(value):
+					Reflect.setField(obj, prop, value);
+					
+				case LessThan(value):
+					Reflect.setField(obj, prop, {"$lt":value});
+					
+				case LessThanEq(value):
+					Reflect.setField(obj, prop, {"$lte":value});
+					
+				case GreaterThan(value):
+					Reflect.setField(obj, prop, {"$gt":value});
+					
+				case GreaterThanEq(value):
+					Reflect.setField(obj, prop, {"$gte":value});
+					
+				case NotEq(value):
+					Reflect.setField(obj, prop, {"$ne":value});
+				
+				case EqAny(value):
+					Reflect.setField(obj, prop, {"$in":value});
+					
+				case NotEqAny(value):
+					Reflect.setField(obj, prop, {"$nin":value});
+					
+				case All(value):
+					Reflect.setField(obj, prop, {"$all":value});
+					
+				case Contains(value):
+					Reflect.setField(obj, prop, value);
+				
+				case Exists(value):
+					if (value == null) value = true;
+					Reflect.setField(obj, prop, {"$exists":value});
+					
+				case Select(where):
+					Reflect.setField(obj, prop, {"$select":encodeQuery(where)});
+					
+				case DontSelect(where):
+					Reflect.setField(obj, prop, {"$dontSelect":encodeQuery(where)});
+					
+				case RelatedTo(className, objectId):
+					if (relatedUsed){
+						throw "Can only use one 'relatedTo' statement per query";
+					}
+					relatedUsed = true;
+					Reflect.setField(obj, "$relatedTo", {object:{__type:"Pointer", className:className, objectId:objectId}, key:prop});
+				
+				case Regex(ex):
+					Reflect.setField(obj, prop, {"$regex":ex});
+			}
+		}
+		return obj;
+	}
+	
+	function canBatch(method:HttpMethod, url:String, ?data:Dynamic, ?options:RequestOptions) : Bool
+	{
+		return (method == HttpMethod.PUT || method == HttpMethod.POST || method == HttpMethod.DELETE) && (options==null || options.token==null);
 	}
 	
 	private function startBatchTimer() 
@@ -79,7 +186,7 @@ class ParseIO
 		
 		if (batchQue.length == 1){
 			var queItem = batchQue[0];
-			_sendSingleRequest(queItem.pack.method, queItem.pack.url, queItem.pack.data, queItem.deferred);
+			_sendSingleRequest(queItem.pack.method, queItem.pack.url, queItem.pack.data, queItem.deferred, queItem.options);
 			return;
 		}
 		var data:BatchOpData = {requests:[]};
@@ -113,17 +220,17 @@ class ParseIO
 		deferred.resolve(res);
 	}
 	
-	private function sendSingleRequest(method:HttpMethod, url:String, data:Dynamic) 
+	private function sendSingleRequest(method:HttpMethod, url:String, data:Dynamic, options:RequestOptions) 
 	{
 		var deferred:Deferred<Dynamic> = new Deferred();
 		var promise = new Promise(deferred);
-		_sendSingleRequest(method, url, data, deferred);
+		_sendSingleRequest(method, url, data, deferred, options);
 		return promise;
 	}
 	
-	function _sendSingleRequest(method:HttpMethod, url:String, data:Dynamic, deferred:Deferred<Dynamic>) 
+	function _sendSingleRequest(method:HttpMethod, url:String, data:Dynamic, deferred:Deferred<Dynamic>, options:RequestOptions) 
 	{
-		var http:Http<String> = getHttp(method, url, data);
+		var http:Http<String> = getHttp(method, url, data, options);
 		http.send();
 		http.then(function(res:String){
 			interpretResult(deferred, Json.parse(res));
@@ -133,7 +240,7 @@ class ParseIO
 		});
 	}
 	
-	inline private function getHttp(method:HttpMethod, url:String, data:Dynamic) : Http<String>
+	inline private function getHttp(method:HttpMethod, url:String, data:Dynamic, ?options:RequestOptions) : Http<String>
 	{
 		var http = Http.string(url);
 		http.method = method;
@@ -141,15 +248,24 @@ class ParseIO
 		http.data(Json.stringify(data));
 		http.setHeader("X-Parse-Application-Id", ParseServers.getAppId(server));
 		http.setHeader("X-Parse-REST-API-Key", ParseServers.getRestKey(server));
+		
+		var token:String = ( options==null || options.token==null ? this.token : options.token );
+		if(token != null) http.setHeader("X-Parse-Session-Token", token);
 		return http;
 	}
 	
 }
 
+typedef RequestOptions =
+{
+	token:String
+}
+
 typedef ParseRequest =
 {
 	pack:ParseRequestPackage,
-	deferred:Deferred<Dynamic>
+	deferred:Deferred<Dynamic>,
+	options:RequestOptions
 }
 
 typedef BatchOpData =
@@ -183,4 +299,35 @@ typedef ParseEntityList =
 
 abstract ParseDate(String){
 	
+}
+
+typedef ParseQueryOptions =
+{
+	?where:Map<String, ParseQueryOps>,
+	?order:String,
+	?limit:Int,
+	?skip:Int,
+	?keys:Array<String>,
+	?include:Array<String>,
+}
+
+enum ParseQueryOps{
+	Eq(value:Dynamic);
+	LessThan(value:Float);
+	LessThanEq(value:Float);
+	GreaterThan(value:Float);
+	GreaterThanEq(value:Float);
+	NotEq(value:Dynamic);
+	
+	EqAny(value:Array<Dynamic>);
+	NotEqAny(value:Array<Dynamic>);
+	All(value:Array<Dynamic>);
+	Contains(value:Dynamic);
+	
+	Exists(?value:Bool);
+	Select(where:Map<String, ParseQueryOps>);
+	DontSelect(where:Map<String, ParseQueryOps>);
+	RelatedTo(className:String, objectId:String);
+	
+	Regex(ex:String);
 }

@@ -27,4 +27,24 @@ class ParseUrls
 		return ParseServers.getHost(server) + "/schema";
 	}
 	
+	static public function getSignupUrl(server:String) 
+	{
+		return ParseServers.getHost(server) + "/users";
+	}
+	
+	static public function getPasswordResetUrl(server:String) 
+	{
+		return ParseServers.getHost(server) + "/requestPasswordReset";
+	}
+	
+	static public function getSigninUrl(server:String) 
+	{
+		return ParseServers.getHost(server) + "/login";
+	}
+	
+	static public function getSessionUrl(server:String) 
+	{
+		return ParseServers.getHost(server) + "/users/me";
+	}
+	
 }
