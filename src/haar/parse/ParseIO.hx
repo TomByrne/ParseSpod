@@ -1,4 +1,4 @@
-package haar;
+package haar.parse;
 import com.imagination.util.time.Timer;
 import haar.ParseIO.ParseRequest;
 import haar.http.Http;
@@ -50,7 +50,7 @@ class ParseIO
 		this.httpAttempts = httpAttempts;
 	}
 	
-	public function add<T>(method:HttpMethod, url:String, ?data:Dynamic, ?queryOpts:ParseQueryOptions, ?queryVars:Map<String, String>, ?options:RequestOptions) : Promise<T>
+	public function add<T>(method:HttpMethod, url:String, ?data:Dynamic, ?queryOpts:ParseQueryOptions, ?queryVars:Map<String, String>, ?options:RequestOptions, ?file:String, ?contentType:String) : Promise<T>
 	{
 		if (queryOpts != null){
 			if (queryVars == null) queryVars = new Map();
@@ -60,8 +60,8 @@ class ParseIO
 			url += encodeQueryVars(queryVars);
 		}
 		
-		if (batchDelay <= 0 || !canBatch(method, url, data, options)){
-			return sendSingleRequest(method, url, data, options);
+		if (batchDelay <= 0 || !canBatch(method, url, data, options) || file!=null){
+			return sendSingleRequest(method, url, data, options, file, contentType);
 		}else{
 			var deferred:Deferred<T> = new Deferred();
 			var reqPack:ParseRequestPackage = {method:method, url:url};
@@ -186,7 +186,7 @@ class ParseIO
 		
 		if (batchQue.length == 1){
 			var queItem = batchQue[0];
-			_sendSingleRequest(queItem.pack.method, queItem.pack.url, queItem.pack.data, queItem.deferred, queItem.options);
+			_sendSingleRequest(queItem.pack.method, queItem.pack.url, queItem.pack.data, queItem.deferred, queItem.options, null, null);
 			return;
 		}
 		var data:BatchOpData = {requests:[]};
@@ -220,17 +220,22 @@ class ParseIO
 		deferred.resolve(res);
 	}
 	
-	private function sendSingleRequest(method:HttpMethod, url:String, data:Dynamic, options:RequestOptions) 
+	private function sendSingleRequest(method:HttpMethod, url:String, data:Dynamic, options:RequestOptions, file:String, contentType:String) 
 	{
 		var deferred:Deferred<Dynamic> = new Deferred();
 		var promise = new Promise(deferred);
-		_sendSingleRequest(method, url, data, deferred, options);
+		_sendSingleRequest(method, url, data, deferred, options, file, contentType);
 		return promise;
 	}
 	
-	function _sendSingleRequest(method:HttpMethod, url:String, data:Dynamic, deferred:Deferred<Dynamic>, options:RequestOptions) 
+	function _sendSingleRequest(method:HttpMethod, url:String, data:Dynamic, deferred:Deferred<Dynamic>, options:RequestOptions, file:String, contentType:String) 
 	{
-		var http:Http<String> = getHttp(method, url, data, options);
+		var http:Http<String>;
+		if (file != null){
+			http = getFileUploadHttp(method, url, file, contentType, data, options);
+		}else{
+			http = getHttp(method, url, data, options);
+		}
 		http.send();
 		http.then(function(res:String){
 			interpretResult(deferred, Json.parse(res));
@@ -251,6 +256,13 @@ class ParseIO
 		
 		var token:String = ( options==null || options.token==null ? this.token : options.token );
 		if(token != null) http.setHeader("X-Parse-Session-Token", token);
+		return http;
+	}
+	
+	inline private function getFileUploadHttp(method:HttpMethod, url:String, file:String, contentType:String, ?data:Dynamic, ?options:RequestOptions) : Http<String>
+	{
+		var http = getHttp(method, url, data, options);
+		http.file("d", file, contentType);
 		return http;
 	}
 	

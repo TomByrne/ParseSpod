@@ -1,7 +1,9 @@
-package haar;
-import haar.ParseIO.ParseQueryOps;
-import haar.ParseIO.ParseQueryOptions;
-import haar.ParseObjectHelper.EntityDesc;
+package haar.parse;
+import haar.parse.ParseObjectHelper;
+import haar.parse.ParseIO;
+import haar.parse.ParseIO.ParseQueryOps;
+import haar.parse.ParseIO.ParseQueryOptions;
+import haar.parse.ParseObjectHelper.EntityDesc;
 import promhx.Promise;
 
 /**

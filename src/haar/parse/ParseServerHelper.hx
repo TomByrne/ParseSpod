@@ -1,5 +1,6 @@
-package haar;
-import haar.ParseIO.ParseEntity;
+package haar.parse;
+import haar.parse.ParseIO;
+import haar.parse.ParseIO.ParseEntity;
 import haar.ParseServerHelper.Session;
 import haar.http.Http.HttpMethod;
 import promhx.Deferred;

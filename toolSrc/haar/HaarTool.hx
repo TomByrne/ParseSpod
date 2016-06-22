@@ -17,7 +17,7 @@ class HaarTool extends CliTool
 	
 	public function new() 
 	{
-		super();
+		super({checkLastArgForCWD:true});
 	}
 	override function addOps() 
 	{

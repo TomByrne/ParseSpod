@@ -1,4 +1,4 @@
-package haar;
+package haar.parse;
 import haxe.Json;
 import haxe.macro.ComplexTypeTools;
 import haxe.macro.Context;

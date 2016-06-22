@@ -1,4 +1,5 @@
-package haar;
+package haar.parse;
+import haar.parse.ParseIO;
 
 /**
  * ...

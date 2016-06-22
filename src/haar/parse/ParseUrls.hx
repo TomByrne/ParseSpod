@@ -1,4 +1,5 @@
-package haar;
+package haar.parse;
+import haar.parse.ParseServers;
 
 /**
  * ...
@@ -45,6 +46,11 @@ class ParseUrls
 	static public function getSessionUrl(server:String) 
 	{
 		return ParseServers.getHost(server) + "/users/me";
+	}
+	
+	static public function getFilesUrl(server:String, filename:String) 
+	{
+		return ParseServers.getHost(server) + "/files/" + filename;
 	}
 	
 }

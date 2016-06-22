@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"contributors": [
+		"tbyrne"
+	],
+	"license": "MIT",
+	"tags": [],
+	"releasenote": "",
+	"dependencies": {},
+	"name": "HAAR",
+	"description": "",
+	"url": null
+}

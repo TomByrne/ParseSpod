@@ -1,4 +1,4 @@
-package haar;
+package haar.parse;
 
 /**
  * ...

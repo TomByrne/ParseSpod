@@ -37,10 +37,10 @@ class DownloadParseSchemaOp implements IOp
 	public function getArgInfo():Array<OpArg> 
 	{
 		return [
-			{ name:ARG_HOST, desc:"URL for Parse server (inc. api version).", assumed:false, def:"https://api.parse.com/1/" },
-			{ name:ARG_EMAIL, desc:"Email address for Parse account.", assumed:true },
-			{ name:ARG_PASSWORD, desc:"Password for Parse account.", assumed:true },
 			{ name:ARG_APP_NAMES, desc:"Comma separated names of apps to download schemas for (or * for all).", assumed:true, def:"*" },
+			{ name:ARG_EMAIL, desc:"Email address for Parse account.", assumed:false, prompt:"Parse email?" },
+			{ name:ARG_PASSWORD, desc:"Password for Parse account.", assumed:false, prompt:"Parse password?" },
+			{ name:ARG_HOST, desc:"URL for Parse server (inc. api version).", assumed:false, def:"https://api.parse.com/1/" },
 			{ name:ARG_DEST, desc:"Path to save schemas to.", assumed:false, def:"" }
 		];
 	}

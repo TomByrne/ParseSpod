@@ -1,10 +1,12 @@
-package haar;
-import haar.ParseIO.ParseEntity;
-import haar.ParseIO.ParseEntityList;
-import haar.ParseIO.ParseQueryOptions;
+package haar.parse;
+import haar.parse.ParseIO;
+import haar.parse.ParseIO.ParseEntity;
+import haar.parse.ParseIO.ParseEntityList;
+import haar.parse.ParseIO.ParseQueryOptions;
 import haar.ParseObjectHelper.EntityDesc;
 import haar.http.Http.HttpMethod;
-import parse.ParseDate;
+import haar.parse.ParseDate;
+import haar.parse.ParseFile;
 import parse.idm.App;
 import promhx.Deferred;
 import promhx.Promise;
@@ -101,12 +103,24 @@ class ParseObjectHelper
 							
 					case EntityDescFieldType.POINTER:
 						var objectId = field.local.get(id);
-						if (objectId != null) Reflect.setField(changedProps, field.name, { objectId:objectId, __type: "Pointer", className: field.remoteType });
+						if (objectId != null) Reflect.setField(changedProps, field.name, { __type: "Pointer", objectId:objectId, className: field.remoteType });
 						else Reflect.setField(changedProps, field.name, null);
 						changedFields.push(field);
 							
-					case EntityDescFieldType.FILE | EntityDescFieldType.RELATION:
-						// Can't directly set these types
+					case EntityDescFieldType.FILE:
+						var file:ParseFile = untyped field.local.get(id);
+						if (file == null){
+							Reflect.setField(changedProps, field.name, null);
+						}else{
+							if(file.uploaded){
+								Reflect.setField(changedProps, field.name, { __type: "File", name: file.id });
+							}else{
+								// Can't save unuploaded files
+							}
+						}
+						
+					case EntityDescFieldType.RELATION:
+						// Can't directly set relations
 					
 				}
 			}

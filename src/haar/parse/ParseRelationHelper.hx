@@ -1,9 +1,12 @@
-package haar;
-import haar.ParseIO.ParseEntity;
-import haar.ParseIO.ParseEntityList;
-import haar.ParseIO.ParseQueryOptions;
-import haar.ParseObjectHelper.EntityDesc;
+package haar.parse;
+import haar.parse.ParseObjectHelper;
+import haar.parse.ParseIO;
+import haar.parse.ParseIO.ParseEntity;
+import haar.parse.ParseIO.ParseEntityList;
+import haar.parse.ParseIO.ParseQueryOptions;
+import haar.parse.ParseObjectHelper.EntityDesc;
 import haar.http.Http.HttpMethod;
+import haar.parse.ParseObjectId;
 import haxe.Json;
 import parse.ParseRelation;
 import parse.idm.App;
@@ -14,7 +17,7 @@ import promhx.Promise;
  * ...
  * @author Thomas Byrne
  */
-@:access(haar.ParseObjectHelper)
+@:access(haar.parse.ParseObjectHelper)
 class ParseRelationHelper
 {
 	

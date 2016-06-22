@@ -4,20 +4,21 @@
   <output>
     <movie outputType="Application" />
     <movie input="" />
-    <movie path="bin" />
+    <movie path="src\\run.n" />
     <movie fps="30" />
     <movie width="800" />
     <movie height="600" />
     <movie version="0" />
     <movie minorVersion="0" />
-    <movie platform="C++" />
+    <movie platform="Neko" />
     <movie background="#FFFFFF" />
   </output>
   <!-- Other classes to be compiled into your SWF -->
   <classpaths>
+    <class path="toolSrc" />
     <class path="src" />
     <class path="modules\core-hx\core\src" />
-    <class path="libSrc" />
+    <class path="modules\core-hx\displayEngine\src" />
   </classpaths>
   <!-- Build options -->
   <build>
@@ -39,6 +40,7 @@
     <compile path="src\haar\Main.hx" />
     <compile path="src\haar\Tool.hx" />
     <compile path="src\haar\HaarTool.hx" />
+    <compile path="toolSrc\haar\HaarTool.hx" />
   </compileTargets>
   <!-- Paths to exclude from the Project Explorer tree -->
   <hiddenPaths>

@@ -1,5 +1,5 @@
-package parse;
-import haar.ParseRelationHelper;
+package haar.parse;
+import haar.parse.ParseRelationHelper;
 import promhx.Promise;
 
 /**

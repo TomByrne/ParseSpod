@@ -180,6 +180,7 @@ class GenerateAbstractsOp implements IOp
 			for (typeSchema in schema.types){
 				var fieldsArr:Array<ParseFieldInfo> = [];
 				var relationsArr:Array<ParseFieldInfo> = [];
+				var filesArr:Array<ParseFieldInfo> = [];
 				
 				
 				var fields = Reflect.fields(typeSchema.fields);
@@ -190,7 +191,7 @@ class GenerateAbstractsOp implements IOp
 					var fieldSchema = Reflect.field(typeSchema.fields, field);
 					var type:String;
 					var descType:String = "EntityDescFieldType.NORMAL";
-					var isRelation = false;
+					var addTo:Array<ParseFieldInfo> = fieldsArr;
 					switch(fieldSchema.type){
 						case "String":
 							type = "String";
@@ -210,10 +211,6 @@ class GenerateAbstractsOp implements IOp
 						case "Date":
 							type = "ParseDate";
 							
-						case "File":
-							descType = "EntityDescFieldType.FILE";
-							type = "ParseFile";
-							
 						case "ACL":
 							type = "ParseACL";
 							
@@ -224,7 +221,12 @@ class GenerateAbstractsOp implements IOp
 						case "Relation":
 							descType = "EntityDescFieldType.RELATION";
 							type = cleanupClassName(fieldSchema.targetClass);
-							isRelation = true;
+							addTo = relationsArr;
+							
+						case "File":
+							descType = "EntityDescFieldType.FILE";
+							type = "ParseFile";
+							addTo = filesArr;
 							
 						default:
 							type = fieldSchema.type;
@@ -232,14 +234,10 @@ class GenerateAbstractsOp implements IOp
 					}
 					var remoteType = (fieldSchema.targetClass==null ? "null" : '"' + fieldSchema.targetClass + '"');
 					var fieldInfo = {i:i, first:(i == 0), last:(i == fields.length - 1), name:field, type:type, descType:descType, remoteType:remoteType};
-					if (isRelation){
-						relationsArr.push(fieldInfo);
-					}else{
-						fieldsArr.push(fieldInfo);
-					}
+					addTo.push(fieldInfo);
 				}
 				
-				var classInfo:ParseClassInfo = {className:cleanupClassName(typeSchema.className), remoteClassName:typeSchema.className, fields:fieldsArr, relations:relationsArr, haarVersion:haarVersion, serverId:serverId, classPack:classPack};
+				var classInfo:ParseClassInfo = {className:cleanupClassName(typeSchema.className), remoteClassName:typeSchema.className, fields:fieldsArr, relations:relationsArr, files:filesArr, haarVersion:haarVersion, serverId:serverId, classPack:classPack};
 				
 				var classStr = entityTemplate.execute(classInfo);
 				
@@ -281,6 +279,7 @@ typedef ParseClassInfo =
 	remoteClassName:String,
 	fields:Array<ParseFieldInfo>,
 	relations:Array<ParseFieldInfo>,
+	files:Array<ParseFieldInfo>,
 }
 typedef ParseFieldInfo =
 {

@@ -1,8 +1,14 @@
 package haar.http;
+import com.imagination.util.app.Platform;
 import haxe.io.Bytes;
 import promhx.Deferred;
 import promhx.Promise;
 import promhx.Stream;
+
+#if sys
+import sys.io.File;
+import sys.FileSystem;
+#end
 
 using Reflect;
 
@@ -58,7 +64,11 @@ class Http<T> extends Stream<T>
 	
 	var _headers:Map<String, String>;
 	
-	var _innerhttp:haxe.Http;
+	var _innerhttp:haar.haxe.Http;
+	
+	var _fileArgName:String;
+	var _filePath:String;
+	var _fileContentType:String;
 
 	private function new(method:HttpMethod, ?url:String) 
 	{
@@ -95,6 +105,13 @@ class Http<T> extends Stream<T>
 		_data = data;
 		return this;
 	}
+	public function file(argName:String, file:String, contentType:String="application/octet-stream"):Http<T>
+	{
+		_fileArgName = argName;
+		_filePath = file;
+		_fileContentType = contentType;
+		return this;
+	}
 	public function setHeader(name:String, value:String):Http<T>
 	{
 		if (_headers == null) _headers = new Map();
@@ -119,7 +136,7 @@ class Http<T> extends Stream<T>
 	{
 		try{
 			if (_innerhttp == null){
-				_innerhttp = new haxe.Http(url);
+				_innerhttp = new haar.haxe.Http(url);
 				_innerhttp.onData = untyped onData;
 				_innerhttp.onError = onError;
 				//_innerhttp.onStatus = onStatus;
@@ -141,6 +158,18 @@ class Http<T> extends Stream<T>
 				if (method != HttpMethod.POST) _innerhttp.setHeader("X-HTTP-Method-Override", method);
 			}
 			
+			if (_filePath != null){
+				
+				#if sys
+					var filename:String = _filePath.substr(_filePath.lastIndexOf(sl())+1);
+					var input = File.read(_filePath, true);
+					var size:Int = FileSystem.stat(_filePath).size;
+					_innerhttp.fileTransfert(_fileArgName, filename, input, size, _fileContentType);
+				#else
+					_innerhttp.uploadFile(_fileArgName, _filePath, _fileContentType);
+				#end
+			}
+			
 			if(_headers != null){
 				for (name in _headers.keys()){
 					_innerhttp.setHeader(name, _headers.get(name));
@@ -153,6 +182,14 @@ class Http<T> extends Stream<T>
 			_response.catchError(e);
 		}
 		return this;
+	}
+	private static var _sl:String;
+	public static inline function sl():String
+	{
+		if (_sl == null) {
+			_sl = (Platform.isWindows() ? "\\" : "/");
+		}
+		return _sl;
 	}
 	
 	function doSend() 
