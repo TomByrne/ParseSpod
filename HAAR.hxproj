@@ -17,8 +17,8 @@
   <classpaths>
     <class path="toolSrc" />
     <class path="src" />
-    <class path="modules\core-hx\core\src" />
     <class path="modules\core-hx\displayEngine\src" />
+    <class path="modules\open-core-hx\src" />
   </classpaths>
   <!-- Build options -->
   <build>

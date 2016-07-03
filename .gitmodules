@@ -1,5 +1,5 @@
-[submodule "modules/core-hx"]
-	path = modules/core-hx
-	url = git@bitbucket.org:imagination/9084-app-core-hx.git
-	branch = community/HAAR
+[submodule "modules/open-core-hx"]
+	path = modules/open-core-hx
+	url = git@github.com:ImaginationSydney/ImaginationHx.git
+	branch = proj/HAAR
 	internal = true
