@@ -156,9 +156,10 @@ class Http<T> extends Stream<T>
 				
 			}else{
 				if(_data != null) _innerhttp.setPostData(_data);
-				if (method != HttpMethod.POST){
+				/*if (method != HttpMethod.POST){
 					_innerhttp.setHeader("X-HTTP-Method-Override", method);
-				}
+				}*/
+				_innerhttp.setMethod(method);
 			}
 			
 			if (_filePath != null){
@@ -198,7 +199,12 @@ class Http<T> extends Stream<T>
 		_attempted++;
 		if (_attempted >= attempts){
 			_attempted = 0;
-			_response.throwError(err);
+			if (_innerhttp.responseData != null){
+				// Server returned error
+				_response.throwError(_innerhttp.responseData);
+			}else{
+				_response.throwError(err);
+			}
 		}else{
 			doSend();
 		}

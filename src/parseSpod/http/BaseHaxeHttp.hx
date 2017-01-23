@@ -25,6 +25,8 @@
   * This is a hacked version of the standard haxe.Http class which allows
   * the sending of a file as a single part request (default only sends files
   * as multipart).
+  * 
+  * Also allows for arbitrary HTTP method setting
   */
  
 package parseSpod.http;
@@ -87,6 +89,7 @@ class BaseHaxeHttp {
 	var postData : String;
 	var headers : haxe.ds.StringMap<String>;
 	var params : haxe.ds.StringMap<String>;
+	var explicitMethod:String;
 
 	#if sys
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
@@ -120,6 +123,11 @@ class BaseHaxeHttp {
 		#if php
 		noShutdown = ! untyped __call__('function_exists', 'stream_socket_shutdown');
 		#end
+	}
+
+	public function setMethod( method : String ):BaseHaxeHttp {
+		explicitMethod = method;
+		return this;
 	}
 
 	/**
@@ -221,13 +229,13 @@ class BaseHaxeHttp {
 		}
 		try {
 			if( post )
-				r.open("POST",url,async);
+				r.open(explicitMethod==null ? "POST" : explicitMethod, url, async);
 			else if( uri != null ) {
 				var question = url.split("?").length <= 1;
-				r.open("GET",url+(if( question ) "?" else "&")+uri,async);
+				r.open(explicitMethod==null ? "GET" : explicitMethod,url+(if( question ) "?" else "&")+uri,async);
 				uri = null;
 			} else
-				r.open("GET",url,async);
+				r.open(explicitMethod==null ? "GET" : explicitMethod,url,async);
 		} catch( e : Dynamic ) {
 			onError(e.toString());
 			return;
@@ -288,6 +296,10 @@ class BaseHaxeHttp {
 		} else {
 			request.data = vars;
 			request.method = if( post ) "POST" else "GET";
+		}
+		
+		if (explicitMethod != null){
+			request.method = explicitMethod;
 		}
 		
 		if (file != null){
@@ -383,7 +395,7 @@ class BaseHaxeHttp {
 			err = true;
 			old(e);
 		}
-		customRequest(post,output);
+		customRequest(post, output, null, explicitMethod);
 		if( !err )
 		#if neko
 			me.onData(me.responseData = neko.Lib.stringReference(output.getBytes()));
@@ -483,7 +495,7 @@ class BaseHaxeHttp {
 		if( method != null ) {
 			b.add(method);
 			b.add(" ");
-		} else if( post )
+		} else if( post || file!=null )
 			b.add("POST ");
 		else
 			b.add("GET ");
