@@ -184,7 +184,7 @@ class Http<T> extends Stream<T>
 			doSend();
 			
 		}catch (e:Dynamic){
-			_response.catchError(e);
+			_response.handleError(e);
 		}
 		return this;
 	}
