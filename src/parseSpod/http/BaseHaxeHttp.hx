@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2017 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,93 +30,71 @@
   */
  
 package parseSpod.http;
-import haxe.io.Bytes;
-
-#if openfl
-import openfl.net.URLRequestHeader;
-#end
 
 #if sys
 
 import sys.net.Host;
-
-private typedef AbstractSocket = {
-	var input(default,null) : haxe.io.Input;
-	var output(default,null) : haxe.io.Output;
-	function connect( host : Host, port : Int ) : Void;
-	function setTimeout( t : Float ) : Void;
-	function write( str : String ) : Void;
-	function close() : Void;
-	function shutdown( read : Bool, write : Bool ) : Void;
-	#if hxssl
-	function setCertLocation( file : String, folder : String ) : Void;
-	#end
-}
+import sys.net.Socket;
 
 #end
 
 /**
 	This class can be used to handle Http requests consistently across
 	platforms. There are two intended usages:
-	
-	- call haxe.Http.requestUrl(url) and receive the result as a String (not
-	available on flash)
-	- create a new haxe.Http(url), register your callbacks for onData, onError
-	and onStatus, then call request().
+
+	- call `haxe.Http.requestUrl(url)` and receive the result as a `String`
+	(not available on flash)
+	- create a `new haxe.Http(url)`, register your callbacks for `onData`, 
+	`onError` and `onStatus`, then call `request()`.
 **/
 class BaseHaxeHttp {
 
 	/**
-		The url of `this` request. It is used only by the request() method and
+		The url of `this` request. It is used only by the `request()` method and
 		can be changed in order to send the same request to different target
 		Urls.
 	**/
 	public var url : String;
 	public var responseData(default, null) : Null<String>;
-	
 #if sys
-	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType:String };
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
-	public var responseHeaders : haxe.ds.StringMap<String>;
+	public var responseHeaders : Map<String,String>;
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
-#elseif flash9
-	var file : { param : String, filename : String, mimeType:String };
-#elseif js
+	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
+#elseif (js && !nodejs)
 	public var async : Bool;
+	public var withCredentials : Bool;
 #end
 	var postData : String;
-	var headers : haxe.ds.StringMap<String>;
-	var params : haxe.ds.StringMap<String>;
+	var headers : List<{ header:String, value:String }>;
+	var params : List<{ param:String, value:String }>;
 	var explicitMethod:String;
 
 	#if sys
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
 	#end
 
-#if hxssl
-	public var certFile : String;
-	public var certFolder : String;
-#end
-
 	/**
 		Creates a new Http instance with `url` as parameter.
 
-		This does not do a request until request() is called.
+		This does not do a request until `request()` is called.
 
 		If `url` is null, the field url must be set to a value before making the
-		call to request(), or the result is unspecified.
+		call to `request()`, or the result is unspecified.
 
 		(Php) Https (SSL) connections are allowed only if the OpenSSL extension
 		is enabled.
 	**/
 	public function new( url : String ) {
 		this.url = url;
-		headers = new haxe.ds.StringMap();
-		params = new haxe.ds.StringMap();
-		#if js
+		headers = new List<{ header:String, value:String }>();
+		params = new List<{ param:String, value:String }>();
+
+		#if (js && !nodejs)
 		async = true;
+		withCredentials = false;
 		#elseif sys
 		cnxTimeout = 10;
 		#end
@@ -138,7 +116,13 @@ class BaseHaxeHttp {
 		This method provides a fluent interface.
 	**/
 	public function setHeader( header : String, value : String ):BaseHaxeHttp {
-		headers.set(header, value);
+		headers = Lambda.filter(headers, function(h) return h.header != header);
+		headers.push({ header:header, value:value });
+		return this;
+	}
+
+	public function addHeader( header : String, value : String ):BaseHaxeHttp {
+		headers.push({ header:header, value:value });
 		return this;
 	}
 
@@ -150,11 +134,16 @@ class BaseHaxeHttp {
 		This method provides a fluent interface.
 	**/
 	public function setParameter( param : String, value : String ):BaseHaxeHttp {
-		params.set(param, value);
+		params = Lambda.filter(params, function(p) return p.param != param);
+		params.push({ param:param, value:value });
 		return this;
 	}
 
-	#if !flash8
+	public function addParameter( param : String, value : String ):BaseHaxeHttp {
+		params.push({ param:param, value:value });
+		return this;
+	}
+
 	/**
 		Sets the post data of `this` Http request to `data`.
 
@@ -169,6 +158,31 @@ class BaseHaxeHttp {
 		postData = data;
 		return this;
 	}
+
+	#if (js || flash)
+
+	#if nodejs
+	var req:js.node.http.ClientRequest;
+	#elseif js
+	var req:js.html.XMLHttpRequest;
+	#elseif flash
+	var req:flash.net.URLLoader;
+	#end
+
+	/**
+		Cancels `this` Http request if `request` has been called and a response
+		has not yet been received.
+	**/
+	public function cancel()
+	{
+		if (req == null) return;
+		#if js
+		req.abort();
+		#elseif flash
+		req.close();
+		#end
+		req = null;
+	}
 	#end
 
 	/**
@@ -178,39 +192,114 @@ class BaseHaxeHttp {
 		sent as GET request.
 
 		Depending on the outcome of the request, this method calls the
-		onStatus(), onError() or onData() callback functions.
+		`onStatus()`, `onError()` or `onData()` callback functions.
 
 		If `this.url` is null, the result is unspecified.
 
-		If `this.url` is an invalid or inaccessible Url, the onError() callback
+		If `this.url` is an invalid or inaccessible Url, the `onError()` callback
 		function is called.
 
-		(Js) If `this.async` is false, the callback functions are called before
+		[js] If `this.async` is false, the callback functions are called before
 		this method returns.
 	**/
 	public function request( ?post : Bool ) : Void {
 		var me = this;
-	#if js
+	#if nodejs
 		me.responseData = null;
-		var r = js.Browser.createXMLHttpRequest();
+		var parsedUrl = js.node.Url.parse(url);
+		var secure = (parsedUrl.protocol == "https:");
+		var host = parsedUrl.hostname;
+		var path = parsedUrl.path;
+		var port = if (parsedUrl.port != null) Std.parseInt(parsedUrl.port) else (secure ? 443 : 80);
+		var h:Dynamic = {};
+		for (i in headers) {
+			var arr = Reflect.field(h, i.header);
+			if (arr == null) {
+				arr = new Array<String>();
+				Reflect.setField(h, i.header, arr);
+			}
+			
+			arr.push(i.value);
+		}
+		var uri = postData;
+		if( uri != null )
+			post = true;
+		else for( p in params ) {
+			if( uri == null )
+				uri = "";
+			else
+				uri += "&";
+			uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
+		}
+		var question = path.split("?").length <= 1;
+		if (!post && uri != null) path += (if( question ) "?" else "&") + uri;
+		
+		var opts = {
+			protocol: parsedUrl.protocol,
+			hostname: host,
+			port: port,
+			method: post ? 'POST' : 'GET',
+			path: path,
+			headers: h
+		};
+		function httpResponse (res) {
+			var s = res.statusCode;
+			if (s != null)
+				me.onStatus(s);
+			var body = '';
+			res.on('data', function (d) {
+				body += d;
+			});
+			res.on('end', function (_) {
+				me.responseData = body;
+				me.req = null;
+				if (s != null && s >= 200 && s < 400) {
+					me.onData(body);
+				} else {
+					me.onError("Http Error #"+s);
+				}
+			});
+		}
+		req = secure ? js.node.Https.request(untyped opts, httpResponse) : js.node.Http.request(untyped opts, httpResponse);
+		if (post) req.write(uri);
+		req.end();
+	#elseif js
+		me.responseData = null;
+		var r = req = js.Browser.createXMLHttpRequest();
 		var onreadystatechange = function(_) {
 			if( r.readyState != 4 )
 				return;
 			var s = try r.status catch( e : Dynamic ) null;
+			if ( s != null && untyped __js__('"undefined" !== typeof window') ) {
+				// If the request is local and we have data: assume a success (jQuery approach):
+				var protocol = js.Browser.location.protocol.toLowerCase();
+				var rlocalProtocol = ~/^(?:about|app|app-storage|.+-extension|file|res|widget):$/;
+				var isLocal = rlocalProtocol.match( protocol );
+				if ( isLocal ) {
+					s = r.responseText != null ? 200 : 404;
+				}
+			}
 			if( s == untyped __js__("undefined") )
 				s = null;
 			if( s != null )
 				me.onStatus(s);
-			if( s != null && s >= 200 && s < 400 )
+			if( s != null && s >= 200 && s < 400 ) {
+				me.req = null;
 				me.onData(me.responseData = r.responseText);
-			else if ( s == null )
-				me.onError("Failed to connect or resolve host")
+			}
+			else if ( s == null ) {
+				me.req = null;
+				me.onError("Failed to connect or resolve host");
+			}
 			else switch( s ) {
 			case 12029:
+				me.req = null;
 				me.onError("Failed to connect to host");
 			case 12007:
+				me.req = null;
 				me.onError("Unknown host");
 			default:
+				me.req = null;
 				me.responseData = r.responseText;
 				me.onError("Http Error #"+r.status);
 			}
@@ -220,16 +309,16 @@ class BaseHaxeHttp {
 		var uri = postData;
 		if( uri != null )
 			post = true;
-		else for( p in params.keys() ) {
+		else for( p in params ) {
 			if( uri == null )
 				uri = "";
 			else
 				uri += "&";
-			uri += StringTools.urlEncode(p)+"="+StringTools.urlEncode(params.get(p));
+			uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
 		}
 		try {
 			if( post )
-				r.open(explicitMethod==null ? "POST" : explicitMethod, url, async);
+				r.open(explicitMethod==null ? "POST" : explicitMethod,url,async);
 			else if( uri != null ) {
 				var question = url.split("?").length <= 1;
 				r.open(explicitMethod==null ? "GET" : explicitMethod,url+(if( question ) "?" else "&")+uri,async);
@@ -237,21 +326,24 @@ class BaseHaxeHttp {
 			} else
 				r.open(explicitMethod==null ? "GET" : explicitMethod,url,async);
 		} catch( e : Dynamic ) {
+			me.req = null;
 			onError(e.toString());
 			return;
 		}
-		if( headers.get("Content-Type") == null && post && postData == null )
+		r.withCredentials = withCredentials;
+		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null )
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 
-		for( h in headers.keys() )
-			r.setRequestHeader(h,headers.get(h));
+		for( h in headers )
+			r.setRequestHeader(h.header,h.value);
 		r.send(uri);
 		if( !async )
 			onreadystatechange(null);
-	#elseif flash9
+	#elseif flash
 		me.responseData = null;
-		var loader = new flash.net.URLLoader();
+		var loader = req = new flash.net.URLLoader();
 		loader.addEventListener( "complete", function(e) {
+			me.req = null;
 			me.responseData = loader.data;
 			me.onData( loader.data );
 		});
@@ -260,20 +352,22 @@ class BaseHaxeHttp {
 			if( e.status != 0 )
 				me.onStatus( e.status );
 		});
-		loader.addEventListener( "ioError", function(e:flash.events.IOErrorEvent) {
+		loader.addEventListener( "ioError", function(e:flash.events.IOErrorEvent){
+			me.req = null;
 			me.responseData = loader.data;
 			me.onError(e.text);
 		});
 		loader.addEventListener( "securityError", function(e:flash.events.SecurityErrorEvent){
+			me.req = null;
 			me.onError(e.text);
 		});
 
 		// headers
 		var param = false;
 		var vars = new flash.net.URLVariables();
-		for( k in params.keys() ){
+		for( p in params ){
 			param = true;
-			Reflect.setField(vars,k,params.get(k));
+			Reflect.setField(vars,p.param,p.value);
 		}
 		var small_url = url;
 		if( param && !post ){
@@ -287,8 +381,8 @@ class BaseHaxeHttp {
 		var bug = small_url.split("xxx");
 
 		var request = new flash.net.URLRequest( small_url );
-		for( k in headers.keys() )
-			request.requestHeaders.push( new flash.net.URLRequestHeader(k,headers.get(k)) );
+		for( h in headers )
+			request.requestHeaders.push( new flash.net.URLRequestHeader(h.header,h.value) );
 
 		if( postData != null ) {
 			request.data = postData;
@@ -301,86 +395,13 @@ class BaseHaxeHttp {
 		if (explicitMethod != null){
 			request.method = explicitMethod;
 		}
-		
-		if (file != null){
-			var bytes = new openfl.utils.ByteArray();
-			var fileObj = new flash.filesystem.File(file.filename);
-			var stream = new flash.filesystem.FileStream();
-			stream.open(fileObj, flash.filesystem.FileMode.READ);
-			stream.readBytes(bytes);
-			
-			//var boundary: String = '---------------------------' + Math.round(Math.random() * 10000000);
-			//var header1: String  = "";
-			/*var varsArray:Array = vars.asArray();
-			for each(var item:Metadata in varsArray) {
-				header1 += "\r\n--" + boundary + "\r\n";
-				header1 += 'Content-Disposition: form-data; name="' + item.name + '"\r\n\r\n';
-				header1 += item.value;
-			}*/
-
-			//header1 += '\r\n--'+boundary + '\r\n'
-			//		+'Content-Disposition: form-data; name="' + file.param + '"; filename="'+file.filename+'"\r\n'
-			//		+'Content-Type: '+file.mimeType+'\r\n\r\n';
-					
-			//In a normal POST header, you'd find the image data here
-			//var header2:String =    '\r\n--'+boundary + '--';
-
-			//Creating one final ByteArray
-			var sendBytes = new openfl.utils.ByteArray();
-			//sendBytes.writeMultiByte(header1, "ascii");
-			sendBytes.writeBytes(bytes, 0, bytes.length);
-			//sendBytes.writeMultiByte(header2, "ascii");
-
-			request.data = sendBytes;
-			request.method = openfl.net.URLRequestMethod.POST;
-			request.requestHeaders.push(new URLRequestHeader("Content-Length", Std.string(bytes.length)));
-			//request.contentType = "multipart/form-data; boundary=" + boundary;
-			request.contentType = file.mimeType;
-		}
 
 		try {
 			loader.load( request );
 		}catch( e : Dynamic ){
+			me.req = null;
 			onError("Exception: "+Std.string(e));
 		}
-	#elseif flash
-		me.responseData = null;
-		var r = new flash.LoadVars();
-		// on Firefox 1.5, onData is not called if host/port invalid (!)
-		r.onData = function(data) {
-			if( data == null ) {
-				me.onError("Failed to retrieve url");
-				return;
-			}
-			me.responseData = data;
-			me.onData(data);
-		};
-		#if flash8
-		r.onHTTPStatus = function(status) {
-			// on Firefox 1.5, Flash calls onHTTPStatus with 0 (!??)
-			if( status != 0 )
-				me.onStatus(status);
-		};
-		untyped ASSetPropFlags(r,"onHTTPStatus",7);
-		#end
-		untyped ASSetPropFlags(r,"onData",7);
-		for( h in headers.keys() )
-			r.addRequestHeader(h,headers.get(h));
-		var param = false;
-		for( p in params.keys() ) {
-			param = true;
-			Reflect.setField(r,p,params.get(p));
-		}
-		var small_url = url;
-		if( param && !post ) {
-			var k = url.split("?");
-			if( k.length > 1 ) {
-				small_url = k.shift();
-				r.decode(k.join("?"));
-			}
-		}
-		if( !r.sendAndLoad(small_url,r,if( param ) { if( post ) "POST" else "GET"; } else null) )
-			onError("Failed to initialize Connection");
 	#elseif sys
 		var me = this;
 		var output = new haxe.io.BytesOutput();
@@ -393,7 +414,9 @@ class BaseHaxeHttp {
 			me.responseData = output.getBytes().toString();
 			#end
 			err = true;
-			old(e);
+			// Resetting back onError before calling it allows for a second "retry" request to be sent without onError being wrapped twice
+			onError = old;
+			onError(e);
 		}
 		customRequest(post, output, null, explicitMethod);
 		if( !err )
@@ -405,19 +428,23 @@ class BaseHaxeHttp {
 	#end
 	}
 
-#if openfl
-	public function uploadFile( argname : String, filename : String, mimeType : String ) {
-		this.file = { param : argname, filename : filename, mimeType:mimeType };
-	}
-#elseif sys
+#if sys
 
-	public function fileTransfert( argname : String, filename : String, file : haxe.io.Input, size : Int, mimeType : String ) {
-		this.file = { param : argname, filename : filename, io : file, size : size, mimeType:mimeType };
+	/**
+      Note: Deprecated in 4.0
+	 **/
+	@:noCompletion
+	inline public function fileTransfert( argname : String, filename : String, file : haxe.io.Input, size : Int, mimeType = "application/octet-stream" ) {
+	    fileTransfer(argname, filename, file, size, mimeType);
+    }
+
+	public function fileTransfer( argname : String, filename : String, file : haxe.io.Input, size : Int, mimeType = "application/octet-stream" ) {
+		this.file = { param : argname, filename : filename, io : file, size : size, mimeType : mimeType };
 	}
 
-	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
+	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : sys.net.Socket, ?method : String  ) {
 		this.responseData = null;
-		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
+		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");
 			return;
@@ -427,19 +454,15 @@ class BaseHaxeHttp {
 			if( secure ) {
 				#if php
 				sock = new php.net.SslSocket();
-				#elseif hxssl
-				sock = new sys.ssl.Socket();
-				sock.setCertLocation( certFile, certFolder );
-				#else
-				throw "Https is only supported with -lib ssl";
-				#end
-			} else {
-				#if hxssl
+				#elseif java
+				sock = new java.net.SslSocket();
+				#elseif (!no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp))))
 				sock = new sys.ssl.Socket();
 				#else
-				sock = new sys.net.Socket();
+				throw "Https is only supported with -lib hxssl";
 				#end
-			}
+			} else
+				sock = new Socket();
 		}
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
@@ -458,16 +481,16 @@ class BaseHaxeHttp {
 			while( boundary.length < 38 )
 				boundary = "-" + boundary;
 			var b = new StringBuf();
-			for( p in params.keys() ) {
+			for( p in params ) {
 				b.add("--");
 				b.add(boundary);
 				b.add("\r\n");
 				b.add('Content-Disposition: form-data; name="');
-				b.add(p);
+				b.add(p.param);
 				b.add('"');
 				b.add("\r\n");
 				b.add("\r\n");
-				b.add(params.get(p));
+				b.add(p.value);
 				b.add("\r\n");
 			}
 			/*b.add("--");
@@ -479,15 +502,15 @@ class BaseHaxeHttp {
 			b.add(file.filename);
 			b.add('"');
 			b.add("\r\n");
-			b.add("Content-Type: "+"application/octet-stream"+"\r\n"+"\r\n");*/
+			b.add("Content-Type: "+file.mimeType+"\r\n"+"\r\n");*/
 			uri = b.toString();
 		} else {
-			for( p in params.keys() ) {
+			for( p in params ) {
 				if( uri == null )
 					uri = "";
 				else
 					uri += "&";
-				uri += StringTools.urlEncode(p)+"="+StringTools.urlEncode(params.get(p));
+				uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
 			}
 		}
 
@@ -495,7 +518,7 @@ class BaseHaxeHttp {
 		if( method != null ) {
 			b.add(method);
 			b.add(" ");
-		} else if( post || file!=null )
+		} else if( post )
 			b.add("POST ");
 		else
 			b.add("GET ");
@@ -521,16 +544,16 @@ class BaseHaxeHttp {
 		if( postData != null )
 			b.add("Content-Length: "+postData.length+"\r\n");
 		else if( post && uri != null ) {
-			if( multipart || headers.get("Content-Type") == null ) {
+			if( multipart || !Lambda.exists(headers, function(h) return h.header == "Content-Type") ) {
+				b.add("Content-Type: ");
 				if( multipart ) {
-					b.add("Content-Type: ");
-					b.add(file.mimeType);
+					//b.add("multipart/form-data");
 					//b.add("; boundary=");
 					//b.add(boundary);
-				} else{
 					b.add("Content-Type: ");
+					b.add(file.mimeType);
+				} else
 					b.add("application/x-www-form-urlencoded");
-				}
 				b.add("\r\n");
 			}
 			if( multipart )
@@ -539,26 +562,25 @@ class BaseHaxeHttp {
 			else
 				b.add("Content-Length: "+uri.length+"\r\n");
 		}
-		for( h in headers.keys() ) {
-			b.add(h);
+		b.add("Connection: close\r\n");
+		for( h in headers ) {
+			b.add(h.header);
 			b.add(": ");
-			b.add(headers.get(h));
+			b.add(h.value);
 			b.add("\r\n");
 		}
 		b.add("\r\n");
-		
 		if( postData != null)
 			b.add(postData);
 		else if( post && uri != null )
 			b.add(uri);
 		try {
 			if( BaseHaxeHttp.PROXY != null )
-				sock.connect(new Host(BaseHaxeHttp.PROXY.host), BaseHaxeHttp.PROXY.port);
+				sock.connect(new Host(BaseHaxeHttp.PROXY.host),BaseHaxeHttp.PROXY.port);
 			else
 				sock.connect(new Host(host),port);
 			sock.write(b.toString());
-			if ( multipart ) {
-				//sock.write(" --data-binary ");
+			if( multipart ) {
 				var bufsize = 4096;
 				var buf = haxe.io.Bytes.alloc(bufsize);
 				while( file.size > 0 ) {
@@ -583,7 +605,7 @@ class BaseHaxeHttp {
 		}
 	}
 
-	function readHttpResponse( api : haxe.io.Output, sock : AbstractSocket ) {
+	function readHttpResponse( api : haxe.io.Output, sock : sys.net.Socket ) {
 		// READ the HTTP header (until \r\n\r\n)
 		var b = new haxe.io.BytesBuffer();
 		var k = 4;
@@ -667,6 +689,7 @@ class BaseHaxeHttp {
 			var a = hline.split(": ");
 			var hname = a.shift();
 			var hval = if( a.length == 1 ) a[0] else a.join(": ");
+			hval = StringTools.ltrim( StringTools.rtrim( hval ) );
 			responseHeaders.set(hname, hval);
 			switch(hname.toLowerCase())
 			{
@@ -685,17 +708,23 @@ class BaseHaxeHttp {
 
 		var bufsize = 1024;
 		var buf = haxe.io.Bytes.alloc(bufsize);
-		if( size == null ) {
+		if( chunked ) {
+			try {
+				while( true ) {
+					var len = sock.input.readBytes(buf,0,bufsize);
+					if( !readChunk(chunk_re,api,buf,len) )
+						break;
+				}
+			} catch ( e : haxe.io.Eof ) {
+				throw "Transfer aborted";
+			}
+		} else if( size == null ) {
 			if( !noShutdown )
 				sock.shutdown(false,true);
 			try {
 				while( true ) {
 					var len = sock.input.readBytes(buf,0,bufsize);
-					if( chunked ) {
-						if( !readChunk(chunk_re,api,buf,len) )
-							break;
-					} else
-						api.writeBytes(buf,0,len);
+					api.writeBytes(buf,0,len);
 				}
 			} catch( e : haxe.io.Eof ) {
 			}
@@ -704,15 +733,11 @@ class BaseHaxeHttp {
 			try {
 				while( size > 0 ) {
 					var len = sock.input.readBytes(buf,0,if( size > bufsize ) bufsize else size);
-					if( chunked ) {
-						if( !readChunk(chunk_re,api,buf,len) )
-							break;
-					} else
-						api.writeBytes(buf,0,len);
+					api.writeBytes(buf,0,len);
 					size -= len;
 				}
 			} catch( e : haxe.io.Eof ) {
-				throw "Transfert aborted";
+				throw "Transfer aborted";
 			}
 		}
 		if( chunked && (chunk_size != null || chunk_buf != null) )
@@ -785,7 +810,7 @@ class BaseHaxeHttp {
 		This method is called upon a successful request, with `data` containing
 		the result String.
 
-		The intended usage is to bind it to a custom function:
+		The intended usage is to bind it to a custom function:  
 		`httpInstance.onData = function(data) { // handle result }`
 	**/
 	public dynamic function onData( data : String ) {
@@ -795,7 +820,7 @@ class BaseHaxeHttp {
 		This method is called upon a request error, with `msg` containing the
 		error description.
 
-		The intended usage is to bind it to a custom function:
+		The intended usage is to bind it to a custom function:  
 		`httpInstance.onError = function(msg) { // handle error }`
 	**/
 	public dynamic function onError( msg : String ) {
@@ -805,18 +830,18 @@ class BaseHaxeHttp {
 		This method is called upon a Http status change, with `status` being the
 		new status.
 
-		The intended usage is to bind it to a custom function:
+		The intended usage is to bind it to a custom function:  
 		`httpInstance.onStatus = function(status) { // handle status }`
 	**/
 	public dynamic function onStatus( status : Int ) {
 	}
 
-#if !flash
+#if (!flash && !nodejs)
 	/**
 		Makes a synchronous request to `url`.
 
 		This creates a new Http instance and makes a GET request by calling its
-		request(false) method.
+		`request(false)` method.
 
 		If `url` is null, the result is unspecified.
 	**/
