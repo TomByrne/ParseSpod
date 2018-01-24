@@ -11,6 +11,6 @@
 	"license": "::info.license::",
 	"name": "::info.name::",
 	"description": "ParseSpod is an Haxe library for generating client-side API code for Parse Servers.",
-	"classPath": "src/",
+	"classPath": "src",
 	"url": "::info.helpUrl::"
 }

@@ -20,7 +20,7 @@
 			"displayName": "ParseSpod"
 		}
 	],
-	"name": "ParseSpodHx",
+	"name": "ParseSpod",
 	"license":"MIT",
 	"helpUrl":"https://github.com/TomByrne/ParseSpod"
 }
