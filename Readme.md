@@ -62,6 +62,8 @@ If you want to specify a different folder to search, use this argument `dir=asse
 
 If you want to specify specific schema files to process, use this argument `files=assets/App1.schema.json,App2.schema.json`.
 
+For information on how to use the standard generated Client API, [see here](https://github.com/TomByrne/ParseSpod/wiki/Using-Standard-Client-Objects).
+
 ### Parse Server Legacy
 
 The old closed-source Parse Server had a meta-level which allowed you to have multiple Applications on one server. This made it easier for tools like ParseSpod to get information about your Parse Apps (REST keys, etc). Since this level is removed in the open-source version of the Parse Server, ParseSpod requires a little more info from the user to do it's work. If the meta-level gets reinstated at some point it should be fairly easy to revert to the old method.
