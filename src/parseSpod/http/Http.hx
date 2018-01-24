@@ -1,6 +1,7 @@
 package parseSpod.http;
 
 import haxe.io.Bytes;
+import haxe.io.Input;
 import parseSpod.fs.FileSystemTools;
 import promhx.Deferred;
 import promhx.Promise;

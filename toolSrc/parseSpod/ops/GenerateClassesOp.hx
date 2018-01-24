@@ -21,11 +21,17 @@ class GenerateClassesOp implements IOp
 	
 	public static var NAME:String = "make";
 	
+	private static var ARG_SCHEMA_DIR:String = "dir";
 	private static var ARG_SCHEMA_FILES:String = "files";
 	private static var ARG_DEST:String = "dest";
 	private static var ARG_VERBOSE:String = "verbose";
 	private static var ARG_PACKAGE:String = "package";
 	private static var ARG_TEMPLATES:String = "templates";
+	private static var ARG_WHITELIST:String = "whitelist";
+	private static var ARG_RENAME:String = "rename";
+	
+	// These keywords can't be used as feild names
+	private static var keywords = ["null", "function", "var", "public", "private", "Array", "String", "Int", "Bool"];
 	
 	var entityTemplate:Template;
 	var systemTemplate:Template;
@@ -45,11 +51,14 @@ class GenerateClassesOp implements IOp
 	public function getArgInfo():Array<OpArg> 
 	{
 		return [
+			{ name:ARG_SCHEMA_DIR, desc:"Directory to search for schema files.", assumed:true, def:"" },
 			{ name:ARG_SCHEMA_FILES, desc:"Comma separated paths to schema files.", assumed:true, def:"" },
 			{ name:ARG_DEST, desc:"Destination path for generated classes.", assumed:true, def:"" },
 			{ name:ARG_VERBOSE, desc:"Whether to print out information on all classes generated.", assumed:false, def:"" },
 			{ name:ARG_PACKAGE, desc:"Which package to put the generated classes in.", assumed:false, def:"" },
-			{ name:ARG_TEMPLATES, desc:"Directory to search for templates (built-in = 'abstract').", assumed:false, def:"abstract" }
+			{ name:ARG_TEMPLATES, desc:"Directory to search for templates (built-in = 'abstract').", assumed:false, def:"standard" },
+			{ name:ARG_WHITELIST, desc:"Regex for filtering classes from schema (e.g. whitelist=App_.*).", assumed:false, def:"" },
+			{ name:ARG_RENAME, desc:"Replacement pattern for changing class names, used in conjuction with whitelist, (e.g. rename=Parse$1)", assumed:false, def:"" }
 		];
 	}
 	
@@ -93,28 +102,50 @@ class GenerateClassesOp implements IOp
 		var filesArr:Array<String>;
 		if (files == ""){
 			
-			var allFiles = FileSystem.readDirectory(Sys.getCwd());
+			var dir = args.get(ARG_SCHEMA_DIR);
+			if (dir == "") dir = Sys.getCwd();
+			else{
+				if (!FileSystem.exists(dir)){
+					dir = Sys.getCwd() + "/" + dir;
+					if (!FileSystem.exists(dir)){
+						PrintTools.error("Couldn't find any schema folder to search: " + args.get(ARG_SCHEMA_DIR));
+						return;
+					}
+				}
+				dir += "/";
+			}
+			
+			var allFiles = FileSystem.readDirectory(dir);
 			filesArr = [];
 			for (file in allFiles){
 				var ind = file.indexOf(DEFAULT_EXT);
-				if (!FileSystem.isDirectory(Sys.getCwd() + file) && ind!=-1 && ind == file.length - DEFAULT_EXT.length){
-					filesArr.push(Sys.getCwd() + file);
+				if (!FileSystem.isDirectory(dir + file) && ind!=-1 && ind == file.length - DEFAULT_EXT.length){
+					filesArr.push(dir + file);
 				}
 			}
 			if (filesArr.length == 0){
-				PrintTools.error("Couldn't find any schemas to process in folder: " + Sys.getCwd());
+				PrintTools.error("Couldn't find any schemas to process in folder: " + dir);
 				return;
 			}
 		}else{
 			filesArr = files.split(",");
 		}
 		
+		var whitelistStr = args.get(ARG_WHITELIST);
+		var whitelist:EReg;
+		if (whitelistStr != ""){
+			whitelist = new EReg(whitelistStr, "");
+		}else{
+			whitelist = null;
+		}
+		var rename = args.get(ARG_RENAME);
+		
 		for (file in filesArr){
-			readSchema(file, dest, verbose, pack, filesArr.length);
+			readSchema(file, dest, verbose, pack, filesArr.length, whitelist, rename);
 		}
 	}
 	
-	private function readSchema(schemaFile:String, dest:String, verbose:Bool, classPack:String, totalCount:Int) 
+	private function readSchema(schemaFile:String, dest:String, verbose:Bool, classPack:String, totalCount:Int, whitelist:Null<EReg>, rename:Null<String>) 
 	{
 		if (!FileSystem.exists(schemaFile)){
 			PrintTools.error("Schema file doesn't exist: " + schemaFile);
@@ -162,8 +193,29 @@ class GenerateClassesOp implements IOp
 		var toolVersion = "0.1beta";
 		
 		var entities = [];
+		var classNames:Map<String, String> = new Map();
 		
 		for (typeSchema in schema.types){
+			
+			var className = typeSchema.className;
+			if (whitelist != null){
+				if(!whitelist.match(className)){
+					if (verbose){
+						PrintTools.progressInfo("Skipping class due to unmatched whitelist: " + className);
+					}
+					continue;
+				}else if (rename != null){
+					className = whitelist.replace(className, rename);
+				}
+			}
+			classNames.set(typeSchema.className, cleanupClassName(className));
+		}
+		
+		for (typeSchema in schema.types){
+			
+			var className = classNames.get(typeSchema.className);
+			if (className == null) continue;
+			
 			var allFieldsArr:Array<ParseFieldInfo> = [];
 			var fieldsArr:Array<ParseFieldInfo> = [];
 			var pointersArr:Array<ParseFieldInfo> = [];
@@ -204,12 +256,12 @@ class GenerateClassesOp implements IOp
 						
 					case "Pointer":
 						descType = "EntityDescFieldType.POINTER";
-						type = cleanupClassName(fieldSchema.targetClass);
+						type = classNames.get(fieldSchema.targetClass);
 						addTo = pointersArr;
 						
 					case "Relation":
 						descType = "EntityDescFieldType.RELATION";
-						type = cleanupClassName(fieldSchema.targetClass);
+						type = classNames.get(fieldSchema.targetClass);
 						addTo = relationsArr;
 						
 					case "File":
@@ -222,12 +274,12 @@ class GenerateClassesOp implements IOp
 						PrintTools.warn("Unknown type: " + fieldSchema.type);
 				}
 				var remoteType = (fieldSchema.targetClass == null ? "null" : '"' + fieldSchema.targetClass + '"');
-				var fieldInfo = { i:i, first:(i == 0), last:(i == fields.length - 1), name:field, type:type, descType:descType, remoteType:remoteType };
+				var fieldInfo = { i:i, first:(i == 0), last:(i == fields.length - 1), name:field, safeName:makeSafeName(field), type:type, descType:descType, remoteType:remoteType };
 				addTo.push(fieldInfo);
 				allFieldsArr.push(fieldInfo);
 			}
 			
-			var classInfo:ParseClassInfo = {className:cleanupClassName(typeSchema.className), remoteClassName:typeSchema.className, allFields:allFieldsArr, fields:fieldsArr, pointers:pointersArr, relations:relationsArr, files:filesArr, toolVersion:toolVersion, appName:appName, classPack:classPack};
+			var classInfo:ParseClassInfo = {className:className, remoteClassName:typeSchema.className, allFields:allFieldsArr, fields:fieldsArr, pointers:pointersArr, relations:relationsArr, files:filesArr, toolVersion:toolVersion, appName:appName, classPack:classPack};
 			entities.push(classInfo);
 		
 			if(entityTemplate != null){
@@ -261,6 +313,15 @@ class GenerateClassesOp implements IOp
 			if (verbose){
 				PrintTools.progressInfo("Successfully generated system class " + path);
 			}
+		}
+	}
+	
+	function makeSafeName(name:String) : String 
+	{
+		if (keywords.indexOf(name) != -1){
+			return name + "_";
+		}else{
+			return name;
 		}
 	}
 	
@@ -303,6 +364,7 @@ typedef ParseFieldInfo =
 	first:Bool,
 	last:Bool,
 	name:String,
+	safeName:String,
 	type:String,
 	descType:String,
 	remoteType:String

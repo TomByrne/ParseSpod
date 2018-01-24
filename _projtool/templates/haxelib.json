@@ -1,0 +1,16 @@
+{
+	"contributors": [
+		"tbyrne"
+	],
+	"version": "::version::",
+	"dependencies": {
+		"promhx": ""
+	  },
+	"releasenote": "",
+	"tags": ["restful", "api"],
+	"license": "::info.license::",
+	"name": "::info.name::",
+	"description": "ParseSpod is an Haxe library for generating client-side API code for Parse Servers.",
+	"classPath": "src/",
+	"url": "::info.helpUrl::"
+}

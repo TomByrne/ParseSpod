@@ -1,6 +1,5 @@
 package parseSpod.parse;
-import com.imagination.cli.utils.PrintTools;
-import cpp.Void;
+
 import parseSpod.http.Http;
 import parseSpod.parse.ParseIO;
 import parseSpod.parse.ParseIO.ParseEntity;
@@ -9,6 +8,7 @@ import parseSpod.parse.ParseIO.ParseQueryOptions;
 import parseSpod.http.Http.HttpMethod;
 import parseSpod.parse.ParseDate;
 import parseSpod.parse.ParseFile;
+import parseSpod.parse.ParseObjectHelper.EntityDesc;
 import promhx.Deferred;
 import promhx.Promise;
 
@@ -74,9 +74,10 @@ class ParseObjectHelper
 				case EntityDescFieldType.POINTER:
 					var pointer = Reflect.field(entity, field.name);
 					if (pointer != null){
-						field.remote.set(objId, pointer.objectId);
+						var fieldDesc:EntityDesc = field.entityDesc();
+						field.remote.set(objId, fieldDesc.coerceData == null ? pointer.objectId : fieldDesc.coerceData(pointer.objectId));
 						if (include != null && include.indexOf(field.name) != -1){
-							loadedObj(pointer, field.entityDesc(), overwriteChanges);
+							loadedObj(pointer, fieldDesc, overwriteChanges);
 						}
 					}else{
 						field.remote.set(objId, null);
@@ -106,19 +107,20 @@ class ParseObjectHelper
 			if (fields != null && fields.indexOf(field.name) == -1) continue;
 			
 			if (field.local.exists(id)){
+				var localValue = field.local.get(id);
 				switch(field.type){
 					case EntityDescFieldType.NORMAL:
-						Reflect.setField(changedProps, field.name, field.local.get(id));
+						Reflect.setField(changedProps, field.name, localValue);
 						changedFields.push(field);
 							
 					case EntityDescFieldType.POINTER:
-						var objectId = field.local.get(id);
-						if (objectId != null) Reflect.setField(changedProps, field.name, { __type: "Pointer", objectId:objectId, className: field.remoteType });
+						if (Reflect.hasField(localValue, "objectId")) localValue = Reflect.field(localValue, "objectId");
+						if (localValue != null) Reflect.setField(changedProps, field.name, { __type: "Pointer", objectId:localValue, className: field.remoteType });
 						else Reflect.setField(changedProps, field.name, null);
 						changedFields.push(field);
 							
 					case EntityDescFieldType.FILE:
-						var file:ParseFile = untyped field.local.get(id);
+						var file:ParseFile = untyped localValue;
 						if (file == null){
 							Reflect.setField(changedProps, field.name, null);
 						}else{
@@ -266,12 +268,36 @@ class ParseObjectHelper
 		return str + "}";
 	}
 	
+	public static function hasChanges(id:String, desc:EntityDesc, ?fields:Array<String>) : Bool
+	{
+		for (field in desc.fields){
+			if (fields != null && fields.indexOf(field.name) == -1) continue;
+			if (field.local.exists(id)){
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	static public function revert(id:String, desc:EntityDesc, ?fields:Array<String>) : Bool
+	{
+		var ret:Bool = false;
+		for (field in desc.fields){
+			if (fields != null && fields.indexOf(field.name) == -1) continue;
+			if (field.local.exists(id)){
+				ret = true;
+				field.local.remove(id);
+			}
+		}
+		return ret;
+	}
 }
 
 typedef EntityDesc =
 {
 	fields:Array<EntityDescField<Dynamic>>,
-	loaded:Map<String, Bool>
+	loaded:Map<String, Bool>,
+	?coerceData:String -> Dynamic,
 }
 
 typedef EntityDescField<T> =

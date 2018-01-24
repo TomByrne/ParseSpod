@@ -1,0 +1,26 @@
+{
+	"templates": [
+		{
+			"src": "_projtool\\templates\\haxelib.json",
+			"dest": "haxelib.json"
+		}
+	],
+	"apps": [
+		{
+			"buildDest": null,
+			"monitored": true,
+			"buildScript": "bat\\Build.bat",
+			"type": "haxelib",
+			"supportsFlags": true,
+			"supportsComms": true,
+			"compileFlags": [],
+			"appId": "tbyrne.ParseSpod",
+			"appName": "ParseSpod",
+			"defineFlags": [],
+			"displayName": "ParseSpod"
+		}
+	],
+	"name": "ParseSpodHx",
+	"license":"MIT",
+	"helpUrl":"https://github.com/TomByrne/ParseSpod"
+}

@@ -10,6 +10,13 @@ typedef ParseAppInfo =
  {
 	appName:String,
 	applicationId:String,
+	masterKey:String,
+	restKey:String,
+	serverHost:Null<String>,
+	types:Array<ParseTypeSchema>
+	
+	/*appName:String,
+	applicationId:String,
 	dashboardURL:String,
 	
 	javascriptKey:String,
@@ -24,7 +31,7 @@ typedef ParseAppInfo =
 	requireRevocableSessions: Bool,
 	
 	serverHost:Null<String>,
-	types:Array<ParseTypeSchema>
+	types:Array<ParseTypeSchema>*/
 }
 
 typedef ParseTypeSchema =

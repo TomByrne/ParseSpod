@@ -12,12 +12,12 @@ import promhx.Promise;
  */
 class ParseServerHelper
 {
-	public static function getSession(server:String, token:String, useToken:Bool) : Promise<Session>
+	public static function getSession(server:String, token:String, useToken:Bool) : Promise<ParseSession>
 	{
-		var deferred:Deferred<Session> = new Deferred();
-		var promise:Promise<Session> = new Promise(deferred);
+		var deferred:Deferred<ParseSession> = new Deferred();
+		var promise:Promise<ParseSession> = new Promise(deferred);
 		ParseIO.get(server).add(HttpMethod.GET, ParseUrls.getSessionUrl(server), null, null, null, {token:token})
-		.then(function(resp:Session){
+		.then(function(resp:ParseSession){
 			if (useToken){
 				ParseIO.setToken(server, token);
 			}
@@ -31,12 +31,12 @@ class ParseServerHelper
 		return promise;
 	}
 
-	public static function signup(server:String, signupOptions:SignupOptions, useToken:Bool) : Promise<Session>
+	public static function signup(server:String, signupOptions:SignupOptions, useToken:Bool) : Promise<ParseSession>
 	{
-		var deferred:Deferred<Session> = new Deferred();
-		var promise:Promise<Session> = new Promise(deferred);
+		var deferred:Deferred<ParseSession> = new Deferred();
+		var promise:Promise<ParseSession> = new Promise(deferred);
 		ParseIO.get(server).add(HttpMethod.POST, ParseUrls.getSignupUrl(server), signupOptions)
-		.then(function(resp:Session){
+		.then(function(resp:ParseSession){
 			if (useToken){
 				ParseIO.setToken(server, resp.sessionToken);
 			}
@@ -50,12 +50,12 @@ class ParseServerHelper
 		return promise;
 	}
 
-	public static function signin(server:String, username:String, password:String, useToken:Bool) : Promise<Session>
+	public static function signin(server:String, username:String, password:String, useToken:Bool) : Promise<ParseSession>
 	{
-		var deferred:Deferred<Session> = new Deferred();
-		var promise:Promise<Session> = new Promise(deferred);
+		var deferred:Deferred<ParseSession> = new Deferred();
+		var promise:Promise<ParseSession> = new Promise(deferred);
 		ParseIO.get(server).add(HttpMethod.GET, ParseUrls.getSigninUrl(server), null, null, ["username" => username, "password" => password])
-		.then(function(resp:Session){
+		.then(function(resp:ParseSession){
 			if (useToken){
 				ParseIO.setToken(server, resp.sessionToken);
 			}
@@ -94,7 +94,7 @@ typedef SignupOptions =
 	password:String
 }
 
-typedef Session =
+typedef ParseSession =
 {
 	> ParseEntity,
 	username:String,

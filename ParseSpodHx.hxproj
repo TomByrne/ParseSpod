@@ -4,7 +4,7 @@
   <output>
     <movie outputType="Application" />
     <movie input="" />
-    <movie path="src\\run.n" />
+    <movie path="run.n" />
     <movie fps="30" />
     <movie width="800" />
     <movie height="600" />
@@ -27,13 +27,11 @@
     <option noInlineOnDebug="False" />
     <option mainClass="parseSpod.ParseSpodTool" />
     <option enabledebug="True" />
-    <option additional="-resource templates/abstract/EntityTemplate.hx@abstract/EntityTemplate&#xA;-resource templates/abstract/SystemTemplate.hx@abstract/SystemTemplate" />
+    <option additional="-resource templates/abstract/EntityTemplate.hx@abstract/EntityTemplate&#xA;-resource templates/abstract/SystemTemplate.hx@abstract/SystemTemplate&#xA;-resource templates/standard/EntityTemplate.hx@standard/EntityTemplate&#xA;-resource templates/standard/SystemTemplate.hx@standard/SystemTemplate" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>
     <library name="promhx" />
-    <library name="hxssl" />
-    <library name="msignal" />
   </haxelib>
   <!-- Class files to compile (other referenced classes will automatically be included) -->
   <compileTargets>

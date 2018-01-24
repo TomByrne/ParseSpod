@@ -3,3 +3,6 @@
 	url = git@github.com:ImaginationSydney/ImaginationHx.git
 	branch = proj/HAAR
 	internal = true
+[submodule "modules/wiki"]
+	path = modules/wiki
+	url = https://github.com/TomByrne/ParseSpod.wiki.git

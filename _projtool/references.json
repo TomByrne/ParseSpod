@@ -1,0 +1,31 @@
+{
+	"libraries": [],
+	"modules": [
+		{
+			"branch": null,
+			"repoUrl": "https://github.com/TomByrne/ParseSpod.wiki.git",
+			"internal": false,
+			"name": "wiki"
+		}
+	],
+	"sourcePaths": [
+		{
+			"path": "toolSrc"
+		},
+		{
+			"path": "src"
+		},
+		{
+			"path": "modules\\core-hx\\displayEngine\\src"
+		},
+		{
+			"path": "modules\\open-core-hx\\src"
+		},
+		{
+			"path": "promhx"
+		},
+		{
+			"path": "msignal"
+		}
+	]
+}

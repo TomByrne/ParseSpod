@@ -11,16 +11,18 @@ import sys.io.File;
 import sys.io.FileOutput;
 
 /**
+ * This version worked with the old 'multi-app' Parse server.
+ * 
  * @author Thomas Byrne
  */
-class DownloadParseSchemaOp implements IOp
+class DownloadParseSchemaLegacyOp implements IOp
 {
-	public static var NAME:String = "load-parse";
+	public static var NAME:String = "load-parse-legacy";
 	
 	private static var ARG_HOST:String = "host";
-	private static var ARG_NAME:String = "name";
-	private static var ARG_REST_KEY:String = "restKey";
-	private static var ARG_MASTER_KEY:String = "masterKey";
+	private static var ARG_EMAIL:String = "email";
+	private static var ARG_PASSWORD:String = "password";
+	private static var ARG_APP_NAMES:String = "apps";
 	private static var ARG_DEST:String = "dest";
 
 	public function new() 
@@ -36,10 +38,10 @@ class DownloadParseSchemaOp implements IOp
 	public function getArgInfo():Array<OpArg> 
 	{
 		return [
-			{ name:ARG_HOST, desc:"URL for Parse server (inc. api version).", assumed:false, prompt:"URL for Parser Server?" },
-			{ name:ARG_NAME, desc:"Parse Application name.", assumed:false, prompt:"Application name on Parser Server?" },
-			{ name:ARG_REST_KEY, desc:"Rest Key (required for runtime calls).", assumed:false, prompt:"Rest Key (required for runtime calls)?" },
-			{ name:ARG_MASTER_KEY, desc:"Master Key (required for schema lookup).", assumed:false, prompt:"Master Key (required for schema lookup)?" },
+			{ name:ARG_APP_NAMES, desc:"Comma separated names of apps to download schemas for (or * for all).", assumed:true, prompt:"Parse App IDs (comma separated, * for all)?" },
+			{ name:ARG_EMAIL, desc:"Email address for Parse account.", assumed:false, prompt:"Parse email?" },
+			{ name:ARG_PASSWORD, desc:"Password for Parse account.", assumed:false, prompt:"Parse password?" },
+			{ name:ARG_HOST, desc:"URL for Parse server (inc. api version).", assumed:false, def:"https://api.parse.com/1/" },
 			{ name:ARG_DEST, desc:"Path to save schemas to.", assumed:false, def:"", prompt:"Path to save schemas to?" }
 		];
 	}
@@ -47,26 +49,40 @@ class DownloadParseSchemaOp implements IOp
 	public function doOp(args:Map<String, String>):Void 
 	{
 		var host = args.get(ARG_HOST);
-		var restKey = args.get(ARG_REST_KEY);
-		var masterKey = args.get(ARG_MASTER_KEY);
+		var email = args.get(ARG_EMAIL);
+		var password = args.get(ARG_PASSWORD);
+		var appNames = args.get(ARG_APP_NAMES);
 		var dest = args.get(ARG_DEST);
-		var appName = args.get(ARG_NAME);
+		
+		var appNamesArr:Array<String> = null;
+		if (appNames != "*"){
+			appNamesArr = appNames.split(",");
+		}
 		
 		if (dest == ""){
 			dest = Sys.getCwd();
 		}
 		
-		var app:ParseAppInfo = {
-			appName : appName,
-			applicationId : "app",  // This seems hardcoded on server
-			restKey : restKey,
-			masterKey : masterKey,
-			serverHost : host,
-			types:null
-		}
-		
-		
-		downloadSchema(host, dest, app);
+		var http = Http.string(host + "/apps");
+		http.setHeader("X-Parse-Email", email);
+		http.setHeader("X-Parse-Password", password);
+		http.then(function(res:String){
+			var appsResult:Result<ParseAppInfo> = Json.parse(res);
+			var found = 0;
+			for (app in appsResult.results){
+				if (appNames == "*" || appNamesArr.indexOf(app.appName)!=-1){
+					downloadSchema(host, dest, app);
+					found++;
+				}
+			}
+			if (found < appNamesArr.length){
+				PrintTools.print("Couldn't find "+(appNamesArr.length - found)+" apps");
+			}
+			
+		}).catchError(function(err){
+			PrintTools.print("Failed to load App info: "+err);
+		});
+		http.send();
 	}
 	
 	function downloadSchema(host:String, dest:String, app:ParseAppInfo) 

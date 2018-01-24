@@ -158,6 +158,9 @@ class ParseIO
 				
 				case Regex(ex):
 					Reflect.setField(obj, prop, {"$regex":ex});
+				
+				case Text(ex):
+					Reflect.setField(obj, prop, {"$text":ex});
 			}
 		}
 		return obj;
@@ -236,6 +239,9 @@ class ParseIO
 		var http:Http<String>;
 		if (file != null){
 			http = getFileUploadHttp(method, url, file, contentType, data, options);
+			//http.setHeader("Cache-Control", "no-cache");
+			//http.setHeader("Content-Type", "application/json");
+			//http.contentType("application/json");
 		}else{
 			http = getHttp(method, url, data, options);
 		}
@@ -256,6 +262,7 @@ class ParseIO
 		if(data != null)http.data(Json.stringify(data));
 		http.setHeader("X-Parse-Application-Id", ParseServers.getAppId(server));
 		http.setHeader("X-Parse-REST-API-Key", ParseServers.getRestKey(server));
+		http.setHeader("Content-type", "text/plain");
 		
 		var token:String = ( options==null || options.token==null ? this.token : options.token );
 		if(token != null) http.setHeader("X-Parse-Session-Token", token);
@@ -328,11 +335,12 @@ typedef ParseQueryOptions =
 
 enum ParseQueryOps{
 	Eq(value:Dynamic);
+	NotEq(value:Dynamic);
+	
 	LessThan(value:Float);
 	LessThanEq(value:Float);
 	GreaterThan(value:Float);
 	GreaterThanEq(value:Float);
-	NotEq(value:Dynamic);
 	
 	EqAny(value:Array<Dynamic>);
 	NotEqAny(value:Array<Dynamic>);
@@ -345,4 +353,5 @@ enum ParseQueryOps{
 	RelatedTo(className:String, objectId:String);
 	
 	Regex(ex:String);
+	Text(ex:String);
 }

@@ -12,26 +12,26 @@ abstract ::className::(String)
 	static var loadedObjects:Map<String, Bool> = new Map();
 	
 	::foreach fields::
-	static var ::name::_local:Map<String, ::type::> = new Map();
-	static var ::name::_remote:Map<String, ::type::> = new Map();
+	static var ::safeName::_local:Map<String, ::type::> = new Map();
+	static var ::safeName::_remote:Map<String, ::type::> = new Map();
     ::end::
 	
 	::foreach pointers::
-	static var ::name::_local:Map<String, ::type::> = new Map();
-	static var ::name::_remote:Map<String, ::type::> = new Map();
+	static var ::safeName::_local:Map<String, ::type::> = new Map();
+	static var ::safeName::_remote:Map<String, ::type::> = new Map();
     ::end::
 	
 	::foreach files::
-	static var ::name::_local:Map<String, ::type::> = new Map();
-	static var ::name::_remote:Map<String, ::type::> = new Map();
+	static var ::safeName::_local:Map<String, ::type::> = new Map();
+	static var ::safeName::_remote:Map<String, ::type::> = new Map();
     ::end::
 	
 	::foreach relations::
-	static var ::name::_local:Map<String, Array<::type::>> = new Map();
-	static var ::name::_remote:Map<String, Array<::type::>> = new Map();
-	static var ::name::_added:Map<String, Array<::type::>> = new Map();
-	static var ::name::_removed:Map<String, Array<::type::>> = new Map();
-	static var ::name::_loaded:Map<String, Bool> = new Map();
+	static var ::safeName::_local:Map<String, Array<::type::>> = new Map();
+	static var ::safeName::_remote:Map<String, Array<::type::>> = new Map();
+	static var ::safeName::_added:Map<String, Array<::type::>> = new Map();
+	static var ::safeName::_removed:Map<String, Array<::type::>> = new Map();
+	static var ::safeName::_loaded:Map<String, Bool> = new Map();
     ::end::
 	
 	static function getDesc() : EntityDesc
@@ -39,17 +39,19 @@ abstract ::className::(String)
 		return desc;
 	}
 	
-	static var desc:EntityDesc = {loaded:loadedObjects,
+	static var desc:EntityDesc = {
+		loaded:loadedObjects,
+		coerceData:get,
 		fields:[
 	
 	::foreach fields::
-			{name:"::name::", local:::name::_local, remote:::name::_remote, type:::descType::},::end::
+			{name:"::safeName::", local:::safeName::_local, remote:::safeName::_remote, type:::descType::},::end::
 	::foreach files::
-			{name:"::name::", local:::name::_local, remote:::name::_remote, type:::descType::},::end::
+			{name:"::safeName::", local:::safeName::_local, remote:::safeName::_remote, type:::descType::},::end::
 	::foreach pointers::
-			{name:"::name::", local:::name::_local, remote:::name::_remote, type:::descType::, remoteType:::remoteType::, entityDesc:ParseDescReg.get.bind("::classPack::.::type::")},::end::
+			{name:"::safeName::", local:::safeName::_local, remote:::safeName::_remote, type:::descType::, remoteType:::remoteType::, entityDesc:ParseDescReg.get.bind("::classPack::.::type::")},::end::
 	::foreach relations::
-			{name:"::name::", local:::name::_local, remote:::name::_remote, added:::name::_added, removed:::name::_removed, type:::descType::, remoteType:::remoteType::, entityDesc:ParseDescReg.get.bind("::classPack::.::type::")},::end::
+			{name:"::safeName::", local:::safeName::_local, remote:::safeName::_remote, added:::safeName::_added, removed:::safeName::_removed, type:::descType::, remoteType:::remoteType::, entityDesc:ParseDescReg.get.bind("::classPack::.::type::")},::end::
     
 	
 		]};
@@ -69,6 +71,11 @@ abstract ::className::(String)
 		return new ::className::(ParseObjectId.getLocal());
 	}
 	
+	inline public static function get(id:String) : ::className:: {
+		Server.setup();
+		return new ::className::(id);
+	}
+	
 	
 	public var objectId(get, never):String;
 	inline function get_objectId():String {
@@ -85,60 +92,65 @@ abstract ::className::(String)
 		return ParseObjectId.isLocal(objectId);
 	}
 	
-	::foreach fields::
-	public var ::name::(get, set):::type::;
-	inline function get_::name::():::type:: {
-		return ParseObjectHelper.get(objectId, ::name::_local, ::name::_remote);
+	public var hasChanges(get, never):Bool;
+	inline function get_hasChanges():Bool {
+		return ParseObjectHelper.hasChanges(objectId, desc);
 	}
-	inline function set_::name::(value:::type::):::type:: {
-		return ParseObjectHelper.set(objectId, value, ::name::_local, ::name::_remote);
+	
+	::foreach fields::
+	public var ::safeName::(get, set):::type::;
+	inline function get_::safeName::():::type:: {
+		return ParseObjectHelper.get(objectId, ::safeName::_local, ::safeName::_remote);
+	}
+	inline function set_::safeName::(value:::type::):::type:: {
+		return ParseObjectHelper.set(objectId, value, ::safeName::_local, ::safeName::_remote);
 	}
 	::end::
 	
 	::foreach files::
-	public var ::name::(get, set):::type::;
-	inline function get_::name::():::type:: {
-		return ParseObjectHelper.get(objectId, ::name::_local, ::name::_remote);
+	public var ::safeName::(get, set):::type::;
+	inline function get_::safeName::():::type:: {
+		return ParseObjectHelper.get(objectId, ::safeName::_local, ::safeName::_remote);
 	}
-	inline function set_::name::(value:::type::):::type:: {
-		return ParseObjectHelper.set(objectId, value, ::name::_local, ::name::_remote);
+	inline function set_::safeName::(value:::type::):::type:: {
+		return ParseObjectHelper.set(objectId, value, ::safeName::_local, ::safeName::_remote);
 	}
-	inline public function ::name::Upload(saveEntity:Bool=false):Promise<ParseFile> {
-		return ::name::.uploadForEntity("::appName::", objectId, ::name::_local, saveEntity ? ParseObjectHelper.save.bind(objectId, this, "::appName::", "::remoteClassName::", desc, ["::name::"]) : null );
+	inline public function ::safeName::Upload(saveEntity:Bool=false):Promise<ParseFile> {
+		return ::safeName::.uploadForEntity("::appName::", objectId, ::safeName::_local, saveEntity ? ParseObjectHelper.save.bind(objectId, this, "::appName::", "::remoteClassName::", desc, ["::safeName::"]) : null );
 	}
 	::end::
 	
 	::foreach pointers::
-	public var ::name::(get, set):::type::;
-	inline function get_::name::():::type:: {
-		return ParseObjectHelper.get(objectId, ::name::_local, ::name::_remote);
+	public var ::safeName::(get, set):::type::;
+	inline function get_::safeName::():::type:: {
+		return ParseObjectHelper.get(objectId, ::safeName::_local, ::safeName::_remote);
 	}
-	inline function set_::name::(value:::type::):::type:: {
-		return ParseObjectHelper.set(objectId, value, ::name::_local, ::name::_remote);
+	inline function set_::safeName::(value:::type::):::type:: {
+		return ParseObjectHelper.set(objectId, value, ::safeName::_local, ::safeName::_remote);
 	}
 	::end::
 	
 	
 	
 	::foreach relations::
-	public var ::name::(get, never):Array<::type::>;
-	inline function get_::name::():Array<::type::> {
-		return ParseRelationHelper.get(this, ::name::_local);
+	public var ::safeName::(get, never):Array<::type::>;
+	inline function get_::safeName::():Array<::type::> {
+		return ParseRelationHelper.get(this, ::safeName::_local);
 	}
-	inline public function ::name::Load(overwriteChanges:Bool=false):Promise<Array<::type::>> {
-		return ParseRelationHelper.load("::appName::", "::remoteClassName::", this, ::remoteType::, "::name::", ::name::_local, ::name::_added, ::name::_removed, ::name::_remote, ::name::_loaded, overwriteChanges, ParseDescReg.get("::classPack::.::type::"));
+	inline public function ::safeName::Load(overwriteChanges:Bool=false):Promise<Array<::type::>> {
+		return ParseRelationHelper.load("::appName::", "::remoteClassName::", this, ::remoteType::, "::safeName::", ::safeName::_local, ::safeName::_added, ::safeName::_removed, ::safeName::_remote, ::safeName::_loaded, overwriteChanges, ParseDescReg.get("::classPack::.::type::"));
 	}
-	inline public function ::name::Save():Promise<Array<::type::>> {
-		return ParseRelationHelper.save("::appName::", "::remoteClassName::", this, ::remoteType::, "::name::", ::name::_local, ::name::_added, ::name::_removed, ::name::_remote);
+	inline public function ::safeName::Save():Promise<Array<::type::>> {
+		return ParseRelationHelper.save("::appName::", "::remoteClassName::", this, ::remoteType::, "::safeName::", ::safeName::_local, ::safeName::_added, ::safeName::_removed, ::safeName::_remote);
 	}
-	inline public function ::name::Add(tag:::type::):Void {
-		ParseRelationHelper.add(this, ::name::_local, ::name::_added, ::name::_removed, tag);
+	inline public function ::safeName::Add(entity:::type::):Void {
+		ParseRelationHelper.add(this, ::safeName::_local, ::safeName::_added, ::safeName::_removed, entity);
 	}
-	inline public function ::name::Remove(tag:::type::):Void {
-		ParseRelationHelper.remove(this, ::name::_local, ::name::_added, ::name::_removed, ::name::_loaded, tag);
+	inline public function ::safeName::Remove(entity:::type::):Void {
+		ParseRelationHelper.remove(this, ::safeName::_local, ::safeName::_added, ::safeName::_removed, ::safeName::_loaded, entity);
 	}
-	inline public function ::name::Loaded():Bool {
-		return ParseRelationHelper.loaded(this, ::name::_loaded);
+	inline public function ::safeName::Loaded():Bool {
+		return ParseRelationHelper.loaded(this, ::safeName::_loaded);
 	}
 	::end::
 
@@ -160,6 +172,10 @@ abstract ::className::(String)
 	inline public function delete() : Promise<::className::>
 	{
 		return untyped ParseObjectHelper.delete(objectId, this, "::appName::", "::remoteClassName::", desc);
+	}
+	public function revert() : Bool
+	{
+		return ParseObjectHelper.revert(objectId, desc);
 	}
 	
 	inline public function toString() : String
