@@ -258,9 +258,6 @@ class ParseIO
 		var http:Http<String>;
 		if (file != null){
 			http = getFileUploadHttp(method, url, file, contentType, data, options);
-			//http.setHeader("Cache-Control", "no-cache");
-			//http.setHeader("Content-Type", "application/json");
-			//http.contentType("application/json");
 		}else{
 			http = getHttp(method, url, data, options);
 		}
