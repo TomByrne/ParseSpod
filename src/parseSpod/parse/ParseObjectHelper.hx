@@ -44,7 +44,7 @@ class ParseObjectHelper
 	{
 		var deferred:Deferred<Array<T>> = new Deferred();
 		var promise:Promise<Array<T>> = new Promise(deferred);
-		ParseIO.get(server).add(HttpMethod.GET, ParseUrls.getClassUrl(server, className), null, options)
+		ParseIO.get(server).add(HttpMethod.GET, ParseUrls.getClassUrl(server, className), null, options, null, null, null, null, desc)
 		.then(function(resp:ParseEntityList){
 			var list:Array<T> = [];
 			for (entity in resp.results){
@@ -295,6 +295,7 @@ class ParseObjectHelper
 
 typedef EntityDesc =
 {
+	remoteName:String,
 	fields:Array<EntityDescField<Dynamic>>,
 	loaded:Map<String, Bool>,
 	?coerceData:String -> Dynamic,
@@ -303,6 +304,7 @@ typedef EntityDesc =
 typedef EntityDescField<T> =
 {
 	name:String,
+	remoteName:String,
 	local:Map<String, T>,
 	remote:Map<String, T>,
 	

@@ -29,26 +29,26 @@ class ParseQuery<T>
 	}
 	
 	
-	public function whereEq(prop:String, value:Dynamic) where(prop, ParseQueryOps.Eq(value));
-	public function whereNotEq(prop:String, value:Dynamic) where(prop, ParseQueryOps.NotEq(value));
+	public function whereEq(prop:String, value:Dynamic) return where(prop, ParseQueryOps.Eq(value));
+	public function whereNotEq(prop:String, value:Dynamic) return where(prop, ParseQueryOps.NotEq(value));
 	
-	public function whereLessThan(prop:String, value:Float) where(prop, ParseQueryOps.LessThan(value));
-	public function whereLessThanEq(prop:String, value:Float) where(prop, ParseQueryOps.LessThanEq(value));
-	public function whereGreaterThan(prop:String, value:Float) where(prop, ParseQueryOps.GreaterThan(value));
-	public function whereGreaterThanEq(prop:String, value:Float) where(prop, ParseQueryOps.GreaterThanEq(value));
+	public function whereLessThan(prop:String, value:Float) return where(prop, ParseQueryOps.LessThan(value));
+	public function whereLessThanEq(prop:String, value:Float) return where(prop, ParseQueryOps.LessThanEq(value));
+	public function whereGreaterThan(prop:String, value:Float) return where(prop, ParseQueryOps.GreaterThan(value));
+	public function whereGreaterThanEq(prop:String, value:Float) return where(prop, ParseQueryOps.GreaterThanEq(value));
 	
-	public function whereEqAny(prop:String, value:Array<Dynamic>) where(prop, ParseQueryOps.EqAny(value));
-	public function whereNotEqAny(prop:String, value:Array<Dynamic>) where(prop, ParseQueryOps.NotEqAny(value));
-	public function whereAll(prop:String, value:Array<Dynamic>) where(prop, ParseQueryOps.All(value));
-	public function whereContains(prop:String, value:Dynamic) where(prop, ParseQueryOps.Contains(value));
+	public function whereEqAny(prop:String, value:Array<Dynamic>) return where(prop, ParseQueryOps.EqAny(value));
+	public function whereNotEqAny(prop:String, value:Array<Dynamic>) return where(prop, ParseQueryOps.NotEqAny(value));
+	public function whereAll(prop:String, value:Array<Dynamic>) return where(prop, ParseQueryOps.All(value));
+	public function whereContains(prop:String, value:Dynamic) return where(prop, ParseQueryOps.Contains(value));
 	
-	public function whereExists(prop:String, ?value:Bool) where(prop, ParseQueryOps.Exists(value));
-	public function whereSelect(prop:String, value:Map<String, ParseQueryOps>) where(prop, ParseQueryOps.Select(value));
-	public function whereDontSelect(prop:String, value:Map<String, ParseQueryOps>) where(prop, ParseQueryOps.DontSelect(value));
-	public function whereRelatedTo(prop:String, className:String, objectId:String) where(prop, ParseQueryOps.RelatedTo(className, objectId));
+	public function whereExists(prop:String, ?value:Bool) return where(prop, ParseQueryOps.Exists(value));
+	public function whereSelect(prop:String, value:Map<String, ParseQueryOps>) return where(prop, ParseQueryOps.Select(value));
+	public function whereDontSelect(prop:String, value:Map<String, ParseQueryOps>) return where(prop, ParseQueryOps.DontSelect(value));
+	public function whereRelatedTo(prop:String, className:String, objectId:String) return where(prop, ParseQueryOps.RelatedTo(className, objectId));
 	
-	public function whereRegex(prop:String, value:String) where(prop, ParseQueryOps.Regex(value));
-	public function whereText(prop:String, value:String) where(prop, ParseQueryOps.Text(value));
+	public function whereRegex(prop:String, value:String) return where(prop, ParseQueryOps.Regex(value));
+	public function whereText(prop:String, value:String) return where(prop, ParseQueryOps.Text(value));
 	
 	public function where(prop:String, queryOp:ParseQueryOps) : ParseQuery<T>
 	{

@@ -18,7 +18,7 @@ For deeper information, check out the [wiki](https://github.com/TomByrne/ParseSp
 ParseSpod downloads your Parse Application's schema using the `load-parse` command.
 
 ```
-haxelib run ParseSpod load-parse host=https://myserver.com/ restKey=XXXX masterKey=XXXX name=AppName
+haxelib run ParseSpod load-parse host=https://myserver.com/ appId=XXXX restKey=XXXX masterKey=XXXX name=AppName
 ```
 
 Running this command from the root directory of your project should result in a file called `EscapeRoom.schema.json` in your project root (you can change where it is saved using the `dest` argument).

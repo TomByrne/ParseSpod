@@ -3,6 +3,8 @@ import com.imagination.util.time.Timer;
 import parseSpod.http.Http;
 import parseSpod.http.Http.HttpMethod;
 import haxe.Json;
+import parseSpod.parse.ParseObjectHelper.EntityDesc;
+import parseSpod.parse.ParseObjectHelper.EntityDescField;
 import promhx.Deferred;
 import promhx.Promise;
 
@@ -49,11 +51,11 @@ class ParseIO
 		this.httpAttempts = httpAttempts;
 	}
 	
-	public function add<T>(method:HttpMethod, url:String, ?data:Dynamic, ?queryOpts:ParseQueryOptions, ?queryVars:Map<String, String>, ?options:RequestOptions, ?file:String, ?contentType:String) : Promise<T>
+	public function add<T>(method:HttpMethod, url:String, ?data:Dynamic, ?queryOpts:ParseQueryOptions, ?queryVars:Map<String, String>, ?options:RequestOptions, ?file:String, ?contentType:String, ?desc:EntityDesc) : Promise<T>
 	{
 		if (queryOpts != null){
 			if (queryVars == null) queryVars = new Map();
-			addQueryOpts(queryVars, queryOpts);
+			addQueryOpts(queryVars, queryOpts, desc);
 		}
 		if (queryVars != null){
 			url += encodeQueryVars(queryVars);
@@ -71,7 +73,7 @@ class ParseIO
 		}
 	}
 	
-	function addQueryOpts(query:Map<String, String>, queryOpts:ParseQueryOptions) 
+	function addQueryOpts(query:Map<String, String>, queryOpts:ParseQueryOptions, desc:EntityDesc) 
 	{
 		if (queryOpts.skip != null){
 			query.set("skip", Std.string(queryOpts.skip));
@@ -89,7 +91,7 @@ class ParseIO
 			query.set("keys", queryOpts.keys.join(","));
 		}
 		if (queryOpts.where != null){
-			query.set("where", Json.stringify(encodeQuery(queryOpts.where)));
+			query.set("where", Json.stringify(encodeQuery(queryOpts.where, desc)));
 		}
 	}
 	
@@ -103,14 +105,23 @@ class ParseIO
 		return (ret.length > 0 ? "?" + ret : "");
 	}
 	
-	function encodeQuery(where:Map<String, ParseQueryOps>) : Dynamic
+	function encodeQuery(where:Map<String, ParseQueryOps>, desc:EntityDesc) : Dynamic
 	{
 		var obj = {};
 		var relatedUsed = false;
-		for(prop in where.keys()){
+		for (field in where.keys()){
+			var fieldDesc:EntityDescField<Dynamic> = findFieldDesc(desc.fields, field);
+			
+			var prop = fieldDesc == null ? field : fieldDesc.remoteName;
+			
 			switch(where.get(prop)){
 				case Eq(value):
-					Reflect.setField(obj, prop, value);
+					if (fieldDesc != null && fieldDesc.entityDesc != null){
+						var childDesc = fieldDesc.entityDesc();
+						Reflect.setField(obj, prop, {__type:"Pointer", className:childDesc.remoteName, objectId:value});
+					}else{
+						Reflect.setField(obj, prop, value);
+					}
 					
 				case LessThan(value):
 					Reflect.setField(obj, prop, {"$lt":value});
@@ -144,10 +155,10 @@ class ParseIO
 					Reflect.setField(obj, prop, {"$exists":value});
 					
 				case Select(where):
-					Reflect.setField(obj, prop, {"$select":encodeQuery(where)});
+					Reflect.setField(obj, prop, {"$select":encodeQuery(where, fieldDesc.entityDesc())});
 					
 				case DontSelect(where):
-					Reflect.setField(obj, prop, {"$dontSelect":encodeQuery(where)});
+					Reflect.setField(obj, prop, {"$dontSelect":encodeQuery(where, fieldDesc.entityDesc())});
 					
 				case RelatedTo(className, objectId):
 					if (relatedUsed){
@@ -164,6 +175,14 @@ class ParseIO
 			}
 		}
 		return obj;
+	}
+	
+	function findFieldDesc(fields:Array<EntityDescField<Dynamic>>, name:String) : EntityDescField<Dynamic> 
+	{
+		for (field in fields){
+			if (field.name == name) return field;
+		}
+		return null;
 	}
 	
 	function canBatch(method:HttpMethod, url:String, ?data:Dynamic, ?options:RequestOptions) : Bool

@@ -19,6 +19,7 @@ class DownloadParseSchemaOp implements IOp
 	
 	private static var ARG_HOST:String = "host";
 	private static var ARG_NAME:String = "name";
+	private static var ARG_APP_ID:String = "appId";
 	private static var ARG_REST_KEY:String = "restKey";
 	private static var ARG_MASTER_KEY:String = "masterKey";
 	private static var ARG_DEST:String = "dest";
@@ -37,7 +38,8 @@ class DownloadParseSchemaOp implements IOp
 	{
 		return [
 			{ name:ARG_HOST, desc:"URL for Parse server (inc. api version).", assumed:false, prompt:"URL for Parser Server?" },
-			{ name:ARG_NAME, desc:"Parse Application name.", assumed:false, prompt:"Application name on Parser Server?" },
+			{ name:ARG_NAME, desc:"Parse App name.", assumed:false, prompt:"App name on Parser Server?" },
+			{ name:ARG_APP_ID, desc:"Parse App ID.", assumed:false, prompt:"App ID on Parser Server?" },
 			{ name:ARG_REST_KEY, desc:"Rest Key (required for runtime calls).", assumed:false, prompt:"Rest Key (required for runtime calls)?" },
 			{ name:ARG_MASTER_KEY, desc:"Master Key (required for schema lookup).", assumed:false, prompt:"Master Key (required for schema lookup)?" },
 			{ name:ARG_DEST, desc:"Path to save schemas to.", assumed:false, def:"", prompt:"Path to save schemas to?" }
@@ -47,6 +49,7 @@ class DownloadParseSchemaOp implements IOp
 	public function doOp(args:Map<String, String>):Void 
 	{
 		var host = args.get(ARG_HOST);
+		var appId = args.get(ARG_APP_ID);
 		var restKey = args.get(ARG_REST_KEY);
 		var masterKey = args.get(ARG_MASTER_KEY);
 		var dest = args.get(ARG_DEST);
@@ -58,7 +61,7 @@ class DownloadParseSchemaOp implements IOp
 		
 		var app:ParseAppInfo = {
 			appName : appName,
-			applicationId : "app",  // This seems hardcoded on server
+			applicationId : appId,
 			restKey : restKey,
 			masterKey : masterKey,
 			serverHost : host,

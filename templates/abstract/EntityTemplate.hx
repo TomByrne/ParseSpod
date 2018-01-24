@@ -40,18 +40,19 @@ abstract ::className::(String)
 	}
 	
 	static var desc:EntityDesc = {
+		remoteName:"::remoteClassName::",
 		loaded:loadedObjects,
 		coerceData:get,
 		fields:[
 	
 	::foreach fields::
-			{name:"::safeName::", local:::safeName::_local, remote:::safeName::_remote, type:::descType::},::end::
+			{name:"::safeName::", remoteName:"::name::", local:::safeName::_local, remote:::safeName::_remote, type:::descType::},::end::
 	::foreach files::
-			{name:"::safeName::", local:::safeName::_local, remote:::safeName::_remote, type:::descType::},::end::
+			{name:"::safeName::", remoteName:"::name::", local:::safeName::_local, remote:::safeName::_remote, type:::descType::},::end::
 	::foreach pointers::
-			{name:"::safeName::", local:::safeName::_local, remote:::safeName::_remote, type:::descType::, remoteType:::remoteType::, entityDesc:ParseDescReg.get.bind("::classPack::.::type::")},::end::
+			{name:"::safeName::", remoteName:"::name::", local:::safeName::_local, remote:::safeName::_remote, type:::descType::, remoteType:::remoteType::, entityDesc:ParseDescReg.get.bind("::classPack::.::type::")},::end::
 	::foreach relations::
-			{name:"::safeName::", local:::safeName::_local, remote:::safeName::_remote, added:::safeName::_added, removed:::safeName::_removed, type:::descType::, remoteType:::remoteType::, entityDesc:ParseDescReg.get.bind("::classPack::.::type::")},::end::
+			{name:"::safeName::", remoteName:"::name::", local:::safeName::_local, remote:::safeName::_remote, added:::safeName::_added, removed:::safeName::_removed, type:::descType::, remoteType:::remoteType::, entityDesc:ParseDescReg.get.bind("::classPack::.::type::")},::end::
     
 	
 		]};
